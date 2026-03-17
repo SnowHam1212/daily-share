@@ -2,6 +2,30 @@
 
 リアルタイム位置情報共有アプリ
 
+## ファイル構成
+```
+src/
+  theme/
+    theme.ts                  ← カラー(primary/gray/danger/success)・フォント・Chakra コンポーネント設定
+  components/
+    AuthGuard.tsx             ← ローディング中は LoadingSpinner を表示
+    ui/
+      Button.tsx              ← variant: primary / secondary / ghost
+      Button.stories.tsx
+      Input.tsx               ← label・errorMessage 付き
+      Input.stories.tsx
+      Card.tsx
+      Card.stories.tsx
+      LoadingSpinner.tsx
+      LoadingSpinner.stories.tsx
+    Map/
+      Map.tsx                 ← onSignOut ボタン付き、Leaflet CSS は main.tsx で管理
+      MapPin.ts               ← テーマカラーの SVG DivIcon
+      MapPin.stories.tsx
+.storybook/
+  preview.tsx                 ← ChakraProvider で全 Story をラップ
+```
+
 ## 技術スタック
 
 | 領域 | 技術 |
