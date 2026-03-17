@@ -53,3 +53,6 @@ coverage/
 .parcel-cache/
 .next/
 .nuxt/
+
+*storybook.log
+storybook-static

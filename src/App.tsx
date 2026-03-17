@@ -1,24 +1,25 @@
-import { useAuth } from './hooks/useAuth'
+import { ChakraProvider } from '@chakra-ui/react'
+import theme from './theme/theme'
+import { AuthGuard } from './components/AuthGuard'
 import { LoginForm } from './components/Auth/LoginForm'
 import { Map } from './components/Map/Map'
+import { useAuth } from './hooks/useAuth'
 
-function App() {
-  const { user, loading, signOut } = useAuth()
-
-  if (loading) return <div style={{ padding: 24 }}>読み込み中...</div>
+function Inner() {
+  const { user, signOut } = useAuth()
 
   if (!user) return <LoginForm />
 
+  return <Map onSignOut={signOut} />
+}
+
+function App() {
   return (
-    <div style={{ position: 'relative' }}>
-      <button
-        onClick={signOut}
-        style={{ position: 'absolute', top: 12, right: 12, zIndex: 1000 }}
-      >
-        ログアウト
-      </button>
-      <Map />
-    </div>
+    <ChakraProvider theme={theme}>
+      <AuthGuard>
+        <Inner />
+      </AuthGuard>
+    </ChakraProvider>
   )
 }
 
