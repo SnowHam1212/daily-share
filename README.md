@@ -30,7 +30,7 @@ daily-share/
 
 ```bash
 # リポジトリをclone
-git clone https://github.com/ユーザー名/daily-share.git
+git clone https://github.com/<ユーザー名>/daily-share.git
 cd daily-share
 
 # フロントエンド
