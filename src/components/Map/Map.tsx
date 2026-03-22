@@ -44,11 +44,11 @@ export function Map({ onSignOut }: MapProps) {
         />
         {locations.map((loc) => (
           <Marker
-            key={loc.id}
-            position={[loc.latitude, loc.longitude]}
+            key={loc.userId}
+            position={[loc.lat ?? 0, loc.lng ?? 0]}
             icon={MapPin()}
           >
-            <Popup>{loc.user_id}</Popup>
+            <Popup>{loc.userId}</Popup>
           </Marker>
         ))}
       </MapContainer>

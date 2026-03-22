@@ -25,7 +25,7 @@ export function useRealtimeLocations() {
         (payload) => {
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
             setLocations((prev) => {
-              const idx = prev.findIndex((l) => l.id === (payload.new as LocationRow).id)
+              const idx = prev.findIndex((l) => l.userId === (payload.new as LocationRow).userId)
               if (idx >= 0) {
                 const next = [...prev]
                 next[idx] = payload.new as LocationRow
@@ -34,7 +34,7 @@ export function useRealtimeLocations() {
               return [...prev, payload.new as LocationRow]
             })
           } else if (payload.eventType === 'DELETE') {
-            setLocations((prev) => prev.filter((l) => l.id !== (payload.old as LocationRow).id))
+            setLocations((prev) => prev.filter((l) => l.userId !== (payload.old as LocationRow).userId))
           }
         }
       )
