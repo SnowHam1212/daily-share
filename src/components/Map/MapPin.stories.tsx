@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react'
+import type { Meta, StoryObj } from '@storybook/react-vite'
 import { Box } from '@chakra-ui/react'
 
 // MapPin は Leaflet DivIcon を返す関数なので SVG を直接プレビューする
