@@ -33,5 +33,20 @@ export function useAuth() {
 
   const signOut = () => supabase.auth.signOut()
 
-  return { user, session, loading, signInWithEmail, signUpWithEmail, signInWithGoogle, signOut }
+  const updateProfile = (
+    userId: string,
+    values: {
+      displayName: string
+      firstName?: string | null
+      familyName?: string | null
+      phoneNumber?: string | null
+      birthday?: string | null
+    }
+  ) =>
+    supabase
+      .from('users')
+      .update(values)
+      .eq('id', userId)
+
+  return { user, session, loading, signInWithEmail, signUpWithEmail, signInWithGoogle, signOut, updateProfile }
 }
