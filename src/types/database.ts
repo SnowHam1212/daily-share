@@ -37,6 +37,7 @@ export type Database = {
           birthday?: string | null
           createdAt?: string | null
         }
+        Relationships: []
       }
       teams: {
         Row: {
@@ -57,6 +58,7 @@ export type Database = {
           invitationalCode?: string
           createdAt?: string | null
         }
+        Relationships: []
       }
       user_teams: {
         Row: {
@@ -80,6 +82,7 @@ export type Database = {
           role?: string
           joinedAt?: string | null
         }
+        Relationships: []
       }
       user_friends: {
         Row: {
@@ -100,6 +103,7 @@ export type Database = {
           friendId?: string
           createdAt?: string | null
         }
+        Relationships: []
       }
       events: {
         Row: {
@@ -135,6 +139,7 @@ export type Database = {
           sharingState?: 'private' | 'friends' | 'team'
           createdAt?: string | null
         }
+        Relationships: []
       }
       locations: {
         Row: {
@@ -158,10 +163,11 @@ export type Database = {
           sharingState?: 'private' | 'friends' | 'team'
           updatedAt?: string | null
         }
+        Relationships: []
       }
     }
-    Views: Record<string, never>
-    Functions: Record<string, never>
+    Views: { [_ in never]: never }
+    Functions: { [_ in never]: never }
     Enums: {
       sharing_state: 'private' | 'friends' | 'team'
     }

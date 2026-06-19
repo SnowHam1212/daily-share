@@ -94,6 +94,21 @@ export function useAuth() {
 
   const displayNameMissing = !profile || !profile.displayName || profile.displayName.trim() === ''
 
+  const updateProfile = (
+    userId: string,
+    values: {
+      displayName: string
+      firstName?: string | null
+      familyName?: string | null
+      phoneNumber?: string | null
+      birthday?: string | null
+    }
+  ) =>
+    (supabase as any)
+      .from('users')
+      .update(values)
+      .eq('id', userId)
+
   return {
     user,
     session,
@@ -102,6 +117,7 @@ export function useAuth() {
     loading,
     displayNameMissing,
     refreshProfile,
+    updateProfile,
     signInWithEmail,
     signUpWithEmail,
     signInWithGoogle,

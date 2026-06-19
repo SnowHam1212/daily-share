@@ -7,12 +7,12 @@ import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Card } from '../ui/Card'
 
-interface LoginFormProps {
-  onSwitchToSignup?: () => void
+interface SignupFormProps {
+  onSwitchToLogin: () => void
 }
 
-export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
-  const { signInWithEmail, signInWithGoogle } = useAuth()
+export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
+  const { signUpWithEmail, signInWithGoogle } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -22,9 +22,10 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
     e.preventDefault()
     setError(null)
     setIsLoading(true)
-    const { error } = await signInWithEmail(email, password)
+    const { error } = await signUpWithEmail(email, password)
     setIsLoading(false)
     if (error) setError(error.message)
+    // サインアップ成功時は onAuthStateChange が user をセットするのでここでは何もしない
   }
 
   return (
@@ -36,7 +37,7 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
               Daily Share
             </Text>
             <Text fontSize="sm" color="gray.500" mt={1}>
-              アカウントにログインしてください
+              アカウントを作成してください
             </Text>
           </Box>
 
@@ -65,12 +66,12 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
               label="パスワード"
               id="password"
               type="password"
-              placeholder="パスワードを入力"
+              placeholder="パスワードを入力（6文字以上）"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
             <Button type="submit" isLoading={isLoading} w="full">
-              ログイン
+              アカウント作成
             </Button>
           </VStack>
 
@@ -84,21 +85,19 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
             Google でログイン
           </Button>
 
-          {onSwitchToSignup && (
-            <Text textAlign="center" fontSize="sm" color="gray.500">
-              アカウントをお持ちでないですか？
-              {' '}
-              <Box
-                as="span"
-                color="primary.400"
-                cursor="pointer"
-                fontWeight="medium"
-                onClick={onSwitchToSignup}
-              >
-                新規登録
-              </Box>
-            </Text>
-          )}
+          <Text textAlign="center" fontSize="sm" color="gray.500">
+            すでにアカウントをお持ちですか？
+            {' '}
+            <Box
+              as="span"
+              color="primary.400"
+              cursor="pointer"
+              fontWeight="medium"
+              onClick={onSwitchToLogin}
+            >
+              ログイン
+            </Box>
+          </Text>
         </VStack>
       </Card>
     </Flex>
