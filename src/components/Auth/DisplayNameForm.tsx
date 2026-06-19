@@ -2,6 +2,9 @@ import { useState } from 'react'
 import { Button, Input, VStack, Text } from '@chakra-ui/react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import type { Database } from '../../types/database'
+
+type UserUpdate = Database['public']['Tables']['users']['Update']
 
 export function DisplayNameForm() {
   const { user, refreshProfile } = useAuth()
@@ -16,9 +19,9 @@ export function DisplayNameForm() {
       return
     }
     setLoading(true)
-    const { error: updateError } = await (supabase as any)
+    const { error: updateError } = await supabase
       .from('users')
-      .update({ displayName: displayName.trim() })
+      .update({ displayName: displayName.trim() } as UserUpdate)
       .eq('id', user.id)
     setLoading(false)
     if (updateError) {

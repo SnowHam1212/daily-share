@@ -2,6 +2,10 @@ import { useState } from 'react'
 import { Button, Input, VStack, Text } from '@chakra-ui/react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import type { Database } from '../../types/database'
+
+type TeamInsert = Database['public']['Tables']['teams']['Insert']
+type UserTeamInsert = Database['public']['Tables']['user_teams']['Insert']
 
 export function TeamSetup() {
   const { user, refreshProfile } = useAuth()
@@ -18,9 +22,9 @@ export function TeamSetup() {
     setLoading(true)
     try {
       const invitationalCode = Math.random().toString(36).slice(2, 8)
-      const { data: teamData, error: teamError } = await (supabase as any)
+      const { data: teamData, error: teamError } = await supabase
         .from('teams')
-        .insert([{ teamName: teamName.trim(), invitationalCode }])
+        .insert([{ teamName: teamName.trim(), invitationalCode } as TeamInsert])
         .select()
         .single()
 
@@ -30,9 +34,9 @@ export function TeamSetup() {
         return
       }
 
-      const { error: utError } = await (supabase as any)
+      const { error: utError } = await supabase
         .from('user_teams')
-        .insert([{ userId: user.id, teamId: teamData.id, role: 'admin' }])
+        .insert([{ userId: user.id, teamId: teamData.id, role: 'admin' } as UserTeamInsert])
 
       if (utError) {
         setError(utError.message)
@@ -41,8 +45,12 @@ export function TeamSetup() {
       }
 
       await refreshProfile()
-    } catch (e: any) {
-      setError(e?.message ?? String(e))
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        setError(e.message)
+      } else {
+        setError(String(e))
+      }
     } finally {
       setLoading(false)
     }

@@ -5,6 +5,9 @@ import type { Database } from '../types/database'
 
 type Profile = Database['public']['Tables']['users']['Row']
 type Team = Database['public']['Tables']['teams']['Row']
+type UserTeamId = Pick<Database['public']['Tables']['user_teams']['Row'], 'teamId'>
+
+type UserUpdate = Database['public']['Tables']['users']['Update']
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
@@ -21,7 +24,7 @@ export function useAuth() {
     }
 
     // fetch profile from `users` table (new schema)
-    const { data: profileData, error: profileError } = await (supabase as any)
+    const { data: profileData, error: profileError } = await supabase
       .from('users')
       .select('*')
       .eq('id', userId)
@@ -35,7 +38,7 @@ export function useAuth() {
     }
 
     // fetch user_teams rows, then load teams
-    const { data: userTeamsData, error: utError } = await (supabase as any)
+    const { data: userTeamsData, error: utError } = await supabase
       .from('user_teams')
       .select('teamId')
       .eq('userId', userId)
@@ -46,8 +49,8 @@ export function useAuth() {
     } else if (!userTeamsData || userTeamsData.length === 0) {
       setTeams([])
     } else {
-      const teamIds = (userTeamsData as any[]).map((r) => r.teamId)
-      const { data: teamsData, error: teamsError } = await (supabase as any)
+      const teamIds = (userTeamsData as UserTeamId[]).map((r) => r.teamId)
+      const { data: teamsData, error: teamsError } = await supabase
         .from('teams')
         .select('*')
         .in('id', teamIds)
@@ -94,17 +97,8 @@ export function useAuth() {
 
   const displayNameMissing = !profile || !profile.displayName || profile.displayName.trim() === ''
 
-  const updateProfile = (
-    userId: string,
-    values: {
-      displayName: string
-      firstName?: string | null
-      familyName?: string | null
-      phoneNumber?: string | null
-      birthday?: string | null
-    }
-  ) =>
-    (supabase as any)
+  const updateProfile = (userId: string, values: UserUpdate) =>
+    supabase
       .from('users')
       .update(values)
       .eq('id', userId)
