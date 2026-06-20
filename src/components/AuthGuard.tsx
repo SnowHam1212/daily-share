@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth'
 import { LoadingSpinner } from './ui/LoadingSpinner'
 import { LoginForm } from './Auth/LoginForm'
 import { SignupForm } from './Auth/SignupForm'
-import { DisplayNameForm } from './Auth/DisplayNameForm.tsx'
+import { ProfileSetupModal } from './Auth/ProfileSetupModal.tsx'
 import { TeamSetup } from './Auth/TeamSetup.tsx'
 
 interface AuthGuardProps {
@@ -11,7 +11,7 @@ interface AuthGuardProps {
 }
 
 export function AuthGuard({ children }: AuthGuardProps) {
-  const { loading, user, displayNameMissing, teams } = useAuth()
+  const { loading, user, displayNameMissing, teams, refreshProfile } = useAuth()
   const [authView, setAuthView] = useState<'login' | 'signup'>('login')
 
   if (loading) return <LoadingSpinner />
@@ -23,7 +23,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     return <LoginForm onSwitchToSignup={() => setAuthView('signup')} />
   }
 
-  if (displayNameMissing) return <DisplayNameForm />
+  if (displayNameMissing) return <ProfileSetupModal isOpen onComplete={refreshProfile} />
 
   if (!teams || teams.length === 0) return <TeamSetup />
 
