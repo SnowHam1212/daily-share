@@ -16,9 +16,9 @@ type UserTeamId = Pick<Database['public']['Tables']['user_teams']['Row'], 'teamI
 
 type UserUpdate = Database['public']['Tables']['users']['Update']
 
-type AuthResponse = { data: { user: User; session: Session } | { user: null; session: null }; error: AuthError | null }
+type AuthResponse = { data: { user: User | null; session: Session | null }; error: AuthError | null }
 type SignOutResponse = { error: AuthError | null }
-type OAuthResponse = { data: { provider: string; url: string }; error: AuthError | null }
+type OAuthResponse = { data: { provider: string; url: string | null }; error: AuthError | null }
 type DatabaseResponse<T> = { data: T | null; error: { message: string } | null }
 
 type AuthContextValue = {
