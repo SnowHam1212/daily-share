@@ -6,7 +6,7 @@ import {
   useCallback,
   type ReactNode,
 } from 'react'
-import type { User, Session } from '@supabase/supabase-js'
+import type { User, Session, AuthError } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import type { Database } from '../types/database'
 
@@ -16,6 +16,11 @@ type UserTeamId = Pick<Database['public']['Tables']['user_teams']['Row'], 'teamI
 
 type UserUpdate = Database['public']['Tables']['users']['Update']
 
+type AuthResponse = { data: { user: User; session: Session } | { user: null; session: null }; error: AuthError | null }
+type SignOutResponse = { error: AuthError | null }
+type OAuthResponse = { data: { provider: string; url: string }; error: AuthError | null }
+type DatabaseResponse<T> = { data: T | null; error: { message: string } | null }
+
 type AuthContextValue = {
   user: User | null
   session: Session | null
@@ -24,11 +29,11 @@ type AuthContextValue = {
   loading: boolean
   displayNameMissing: boolean
   refreshProfile: () => Promise<void>
-  updateProfile: (userId: string, values: UserUpdate) => Promise<any>
-  signInWithEmail: (email: string, password: string) => Promise<any>
-  signUpWithEmail: (email: string, password: string) => Promise<any>
-  signInWithGoogle: () => Promise<any>
-  signOut: () => Promise<any>
+  updateProfile: (userId: string, values: UserUpdate) => Promise<DatabaseResponse<Profile>>
+  signInWithEmail: (email: string, password: string) => Promise<AuthResponse>
+  signUpWithEmail: (email: string, password: string) => Promise<AuthResponse>
+  signInWithGoogle: () => Promise<OAuthResponse>
+  signOut: () => Promise<SignOutResponse>
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -144,6 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const context = useContext(AuthContext)
   if (!context) {
