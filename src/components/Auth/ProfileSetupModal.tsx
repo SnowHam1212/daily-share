@@ -34,13 +34,49 @@ export function ProfileSetupModal({ isOpen, onComplete }: ProfileSetupModalProps
     e.preventDefault()
     if (!user) return
     setError(null)
+    
+    // バリデーション
+    if (!displayName.trim()) {
+      setError('表示名を入力してください')
+      return
+    }
+
+    // 電話番号のバリデーション（空白のみ、またはスペース除外後に空文字列なら null）
+    const trimmedPhone = phoneNumber.trim()
+    const validPhone = trimmedPhone === '' ? null : trimmedPhone
+
+    // 誕生日のバリデーション
+    const validBirthday: string | null = birthday || null
+    if (validBirthday) {
+      const birthDate = new Date(validBirthday)
+      const today = new Date()
+      
+      // 未来の日付チェック
+      if (birthDate > today) {
+        setError('生年月日は今日より前の日付を設定してください')
+        return
+      }
+
+      // 年齢チェック（0歳〜150歳の範囲）
+      const age = today.getFullYear() - birthDate.getFullYear()
+      const monthDiff = today.getMonth() - birthDate.getMonth()
+      const actualAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate()) 
+        ? age - 1 
+        : age
+
+      if (actualAge < 0 || actualAge > 150) {
+        setError('有効な生年月日を入力してください')
+        return
+      }
+    }
+
     setIsLoading(true)
     const result = await updateProfile(user.id, {
       displayName: displayName.trim(),
-      familyName: familyName || null,
-      firstName: firstName || null,
-      phoneNumber: phoneNumber || null,
-      birthday: birthday || null,
+      familyName: familyName.trim() || null,
+      firstName: firstName.trim() || null,
+      phoneNumber: validPhone,
+      birthday: validBirthday,
     })
     setIsLoading(false)
     if (result.error) {
