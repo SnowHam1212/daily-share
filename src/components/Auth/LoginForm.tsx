@@ -22,9 +22,9 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
     e.preventDefault()
     setError(null)
     setIsLoading(true)
-    const { error } = await signInWithEmail(email, password)
+    const result = await signInWithEmail(email, password)
     setIsLoading(false)
-    if (error) setError(error.message)
+    if (result.error) setError(result.error.message)
   }
 
   return (

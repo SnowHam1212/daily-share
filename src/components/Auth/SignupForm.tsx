@@ -22,9 +22,9 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
     e.preventDefault()
     setError(null)
     setIsLoading(true)
-    const { error } = await signUpWithEmail(email, password)
+    const result = await signUpWithEmail(email, password)
     setIsLoading(false)
-    if (error) setError(error.message)
+    if (result.error) setError(result.error.message)
     // サインアップ成功時は onAuthStateChange が user をセットするのでここでは何もしない
   }
 

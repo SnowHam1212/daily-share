@@ -1,5 +1,12 @@
-import { useEffect, useState, useCallback } from 'react'
-import type { User, Session } from '@supabase/supabase-js'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  type ReactNode,
+} from 'react'
+import type { User, Session, AuthError } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import type { Database } from '../types/database'
 
@@ -9,7 +16,29 @@ type UserTeamId = Pick<Database['public']['Tables']['user_teams']['Row'], 'teamI
 
 type UserUpdate = Database['public']['Tables']['users']['Update']
 
-export function useAuth() {
+type AuthResponse = { data: { user: User | null; session: Session | null }; error: AuthError | null }
+type SignOutResponse = { error: AuthError | null }
+type OAuthResponse = { data: { provider: string; url: string | null }; error: AuthError | null }
+type DatabaseResponse<T> = { data: T | null; error: { message: string } | null }
+
+type AuthContextValue = {
+  user: User | null
+  session: Session | null
+  profile: Profile | null
+  teams: Array<Team>
+  loading: boolean
+  displayNameMissing: boolean
+  refreshProfile: () => Promise<void>
+  updateProfile: (userId: string, values: UserUpdate) => Promise<DatabaseResponse<Profile>>
+  signInWithEmail: (email: string, password: string) => Promise<AuthResponse>
+  signUpWithEmail: (email: string, password: string) => Promise<AuthResponse>
+  signInWithGoogle: () => Promise<OAuthResponse>
+  signOut: () => Promise<SignOutResponse>
+}
+
+const AuthContext = createContext<AuthContextValue | undefined>(undefined)
+
+function useProvideAuth() {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -23,7 +52,6 @@ export function useAuth() {
       return
     }
 
-    // fetch profile from `users` table (new schema)
     const { data: profileData, error: profileError } = await supabase
       .from('users')
       .select('*')
@@ -37,7 +65,6 @@ export function useAuth() {
       setProfile(profileData ?? null)
     }
 
-    // fetch user_teams rows, then load teams
     const { data: userTeamsData, error: utError } = await supabase
       .from('user_teams')
       .select('teamId')
@@ -81,27 +108,25 @@ export function useAuth() {
     return () => subscription.unsubscribe()
   }, [fetchProfileAndTeams])
 
-  const signInWithEmail = (email: string, password: string) =>
-    supabase.auth.signInWithPassword({ email, password })
+  const signInWithEmail = async (email: string, password: string) =>
+    await supabase.auth.signInWithPassword({ email, password })
 
-  const signUpWithEmail = (email: string, password: string) =>
-    supabase.auth.signUp({ email, password })
+  const signUpWithEmail = async (email: string, password: string) =>
+    await supabase.auth.signUp({ email, password })
 
-  const signInWithGoogle = () => supabase.auth.signInWithOAuth({ provider: 'google' })
+  const signInWithGoogle = async () =>
+    await supabase.auth.signInWithOAuth({ provider: 'google' })
 
-  const signOut = () => supabase.auth.signOut()
+  const signOut = async () => await supabase.auth.signOut()
+
+  const updateProfile = async (userId: string, values: UserUpdate) =>
+    await supabase.from('users').update(values).eq('id', userId).select().single()
 
   const refreshProfile = async () => {
     await fetchProfileAndTeams(user?.id)
   }
 
   const displayNameMissing = !profile || !profile.displayName || profile.displayName.trim() === ''
-
-  const updateProfile = (userId: string, values: UserUpdate) =>
-    supabase
-      .from('users')
-      .update(values)
-      .eq('id', userId)
 
   return {
     user,
@@ -117,4 +142,18 @@ export function useAuth() {
     signInWithGoogle,
     signOut,
   }
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const auth = useProvideAuth()
+  return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function useAuth() {
+  const context = useContext(AuthContext)
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider')
+  }
+  return context
 }
