@@ -54,7 +54,15 @@ https://<project-ref>.supabase.co/auth/v1/callback
 
 1. 「APIとサービス」→「認証情報」→「認証情報を作成」→「OAuth クライアント ID」
 2. アプリケーションの種類: **ウェブアプリケーション**
-3. **承認済みのリダイレクト URI** に Supabase のコールバックURLを追加：
+3. 名前は管理者だけが見るラベル（例: `daily-share-web`）。任意で良い
+4. 入力欄は2つあるが役割が違う：
+
+   | 欄 | 役割 | このプロジェクトでの値 |
+   |---|---|---|
+   | **承認済みの JavaScript 生成元** | ブラウザ上のJSが直接Google API/SDKを呼ぶ場合に使う欄 | Supabaseはページ全体をGoogleへリダイレクトする方式のため**基本不要（空でOK）**。念のため入れるなら `http://localhost:5173` や本番ドメイン |
+   | **承認済みのリダイレクト URI** | Google認証後にブラウザを送り返す先。**必須** | Supabase のコールバックURL（下記） |
+
+   **承認済みのリダイレクト URI** に Supabase のコールバックURLを追加：
 
    ```
    https://<project-ref>.supabase.co/auth/v1/callback
@@ -66,8 +74,9 @@ https://<project-ref>.supabase.co/auth/v1/callback
 
    > Supabase Dashboard の Authentication → Providers → Google を開くと
    > このコールバックURLが表示されるので、それをコピーして貼るのが確実。
+   > ここが1文字でも違うと `redirect_uri_mismatch` エラーになる。
 
-4. 作成すると **クライアント ID** と **クライアント シークレット** が表示される。
+5. 作成すると **クライアント ID** と **クライアント シークレット** が表示される。
    この2つを次の手順で使う（シークレットはGitに**絶対にコミットしない**）。
 
 ---
