@@ -36,7 +36,7 @@ export function ProfileSetupModal({ isOpen, onComplete }: ProfileSetupModalProps
     setError(null)
     setIsLoading(true)
     const { error } = await updateProfile(user.id, {
-      displayName,
+      displayName: displayName.trim(),
       familyName: familyName || null,
       firstName: firstName || null,
       phoneNumber: phoneNumber || null,
