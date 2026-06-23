@@ -1,16 +1,13 @@
 import { ChakraProvider } from '@chakra-ui/react'
 import theme from './theme/theme'
 import { AuthGuard } from './components/AuthGuard'
-import { Map } from './components/Map/Map'
-import { useAuth } from './hooks/useAuth'
+import { MainLayout } from './components/Layout/MainLayout'
 
 function App() {
-  const { signOut } = useAuth()
-
   return (
     <ChakraProvider theme={theme}>
       <AuthGuard>
-        <Map onSignOut={signOut} />
+        <MainLayout />
       </AuthGuard>
     </ChakraProvider>
   )
