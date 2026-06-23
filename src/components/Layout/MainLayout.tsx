@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import CalendarTab from '../Calendar/CalendarTab'
 import {
   Box,
   Flex,
@@ -17,24 +18,7 @@ import {
 } from '@chakra-ui/react'
 import { useAuth } from '../../hooks/useAuth'
 
-function CalendarTab() {
-  return (
-    <Box
-      bg="white"
-      p={8}
-      borderRadius="lg"
-      boxShadow="sm"
-      minH="calc(100vh - 160px)"
-    >
-      <Text fontSize="2xl" fontWeight="semibold" mb={4}>
-        カレンダー
-      </Text>
-      <Text color="gray.500">
-        ここにカレンダーのメインコンテンツを表示します。
-      </Text>
-    </Box>
-  )
-}
+// CalendarTab is implemented in src/components/Calendar/CalendarTab.tsx
 
 function MapTab() {
   return (
