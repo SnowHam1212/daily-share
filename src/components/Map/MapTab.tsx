@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import { Box, Button, Flex, HStack, Text, Select, VStack, Alert, AlertIcon, Badge } from '@chakra-ui/react'
 import { supabase } from '../../lib/supabase'
@@ -33,6 +33,7 @@ type TileLayerKey = keyof typeof TILE_LAYERS
 
 function RecenterMap({ position }: { position: LatLng | null }) {
   const map = useMap()
+  const centered = useRef(false)
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -42,8 +43,9 @@ function RecenterMap({ position }: { position: LatLng | null }) {
   }, [map])
 
   useEffect(() => {
-    if (position) {
+    if (position && !centered.current) {
       map.setView([position.lat, position.lng], map.getZoom())
+      centered.current = true
     }
   }, [map, position])
 
