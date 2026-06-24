@@ -23,6 +23,7 @@ interface TimeGridViewProps {
   now: Date
   currentUserId: string | undefined
   onSlotClick: (day: Date, minute: number) => void
+  onAllDayClick: (day: Date) => void
   onDelete: (id: string) => void
 }
 
@@ -32,6 +33,7 @@ export function TimeGridView({
   now,
   currentUserId,
   onSlotClick,
+  onAllDayClick,
   onDelete,
 }: TimeGridViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -49,7 +51,6 @@ export function TimeGridView({
     return Math.max(0, Math.min(23 * 60 + 45, snapped))
   }
 
-  const hasAllDay = events.some((e) => e.isAllDay)
   const minColWidth = days.length === 1 ? 'auto' : '100px'
 
   return (
@@ -105,8 +106,7 @@ export function TimeGridView({
             })}
           </Flex>
 
-          {/* All-day row */}
-          {hasAllDay && (
+          {/* All-day row — always visible so empty days can be clicked to add */}
             <Flex borderBottom="1px solid" borderColor="gray.200" bg="gray.50">
               <Center w={`${GUTTER}px`} flexShrink={0} px={1}>
                 <Text fontSize="10px" fontWeight="bold" color="gray.400">
@@ -126,6 +126,10 @@ export function TimeGridView({
                     minH="32px"
                     borderLeft="1px solid"
                     borderColor="gray.100"
+                    cursor="pointer"
+                    transition="background 0.1s"
+                    _hover={{ bg: 'primary.50' }}
+                    onClick={() => onAllDayClick(d)}
                   >
                     {allDay.map((ev) => {
                       const style = EVENT_STYLE[ev.sharingState as SharingState] ?? EVENT_STYLE.private
@@ -143,6 +147,7 @@ export function TimeGridView({
                           borderRadius="sm"
                           px={1.5}
                           py={0.5}
+                          onClick={(e) => e.stopPropagation()}
                         >
                           <Text fontSize="xs" fontWeight="600" color={style.text} noOfLines={1}>
                             {ev.name}
@@ -170,7 +175,6 @@ export function TimeGridView({
                 )
               })}
             </Flex>
-          )}
             </Box>
 
             {/* Time grid — scrolls under the sticky header above */}

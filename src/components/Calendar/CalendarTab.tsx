@@ -169,6 +169,12 @@ export default function CalendarTab() {
     onOpen()
   }
 
+  function openAllDay(day: Date) {
+    const dateStr = toDateInput(day)
+    setForm({ ...EMPTY_FORM, isAllDay: true, startDate: dateStr, endDate: dateStr })
+    onOpen()
+  }
+
   function openDayView(day: Date) {
     setAnchor(startOfDay(day))
     setView('day')
@@ -322,6 +328,7 @@ export default function CalendarTab() {
             now={now}
             currentUserId={user?.id}
             onSlotClick={openSlot}
+            onAllDayClick={openAllDay}
             onDelete={handleDelete}
           />
         )}
