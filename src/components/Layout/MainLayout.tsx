@@ -36,6 +36,7 @@ export function MainLayout() {
         index={tabIndex}
         onChange={(index) => setTabIndex(index)}
         variant="unstyled"
+        isLazy
       >
         <Box
           as="header"
