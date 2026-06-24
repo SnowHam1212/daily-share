@@ -62,7 +62,7 @@ function TripleClickRecenter({ position }: { position: LatLng | null }) {
       clickCount.current += 1
       if (timer.current) clearTimeout(timer.current)
       timer.current = setTimeout(() => { clickCount.current = 0 }, 500)
-      if (clickCount.current >= 3 && position) {
+      if (clickCount.current >= 2 && position) {
         map.setView([position.lat, position.lng], map.getZoom())
         clickCount.current = 0
       }
