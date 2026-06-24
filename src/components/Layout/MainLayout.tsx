@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import CalendarTab from '../Calendar/CalendarTab'
+import MapTab from '../Map/MapTab'
 import {
   Box,
   Flex,
