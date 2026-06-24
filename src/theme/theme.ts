@@ -146,6 +146,10 @@ const theme = extendTheme({
         letterSpacing: '-0.01em',
         transitionProperty: 'common',
         transitionDuration: '150ms',
+        // Never let a button shrink or wrap its label in tight flex rows —
+        // it should always size to fit its text.
+        whiteSpace: 'nowrap',
+        flexShrink: 0,
         _focusVisible: { boxShadow: 'focus' },
       },
       sizes: {
