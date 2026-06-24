@@ -232,6 +232,7 @@ export default function MapTab() {
         <MapContainer
           center={currentPosition ? [currentPosition.lat, currentPosition.lng] : [35.6762, 139.6503]}
           zoom={13}
+          doubleClickZoom={false}
           style={{ height: '100%', width: '100%' }}
         >
           <TileLayer
