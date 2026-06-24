@@ -195,6 +195,16 @@ export default function MapTab() {
     await Promise.all([fetchLocations(), fetchTeamMembers()])
   }, [user, currentPosition, sharingState, upsertLocation, fetchLocations, fetchTeamMembers])
 
+  // Changing the sharing scope takes effect immediately — no need to wait for
+  // the "マップを更新" button so the new visibility is persisted right away.
+  const handleSharingChange = useCallback(
+    (next: LocationRow['sharingState']) => {
+      setSharingState(next)
+      if (currentPosition) void upsertLocation(currentPosition, next)
+    },
+    [currentPosition, upsertLocation],
+  )
+
   const currentPositionLabel = currentPosition
     ? `${currentPosition.lat.toFixed(5)}, ${currentPosition.lng.toFixed(5)}`
     : '位置情報を待機中...'
@@ -206,7 +216,7 @@ export default function MapTab() {
           <Text fontSize="2xl" fontWeight="semibold">
             マップ
           </Text>
-          <Text color="gray.600">共有範囲を選んで「マップを更新」すると、現在地が送信され、チームメンバーの位置が表示されます。</Text>
+          <Text color="gray.600">共有範囲を変更するとすぐに反映されます。「マップを更新」で現在地を送信し、チームメンバーの最新の位置を取得します。</Text>
           <HStack spacing={3} flexWrap="wrap">
             <Badge colorScheme={sharingState === 'private' ? 'gray' : sharingState === 'friends' ? 'blue' : 'purple'}>
               {sharingState}
@@ -229,7 +239,7 @@ export default function MapTab() {
           <Text mb={2} fontWeight="medium">
             共有範囲
           </Text>
-          <Select value={sharingState} onChange={(e) => setSharingState(e.target.value as LocationRow['sharingState'])}>
+          <Select value={sharingState} onChange={(e) => handleSharingChange(e.target.value as LocationRow['sharingState'])}>
             <option value="private">private（自分のみ）</option>
             <option value="friends">friends（友達）</option>
             <option value="team">team（チーム）</option>
