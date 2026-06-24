@@ -1,15 +1,15 @@
 :root {
-  /* Cartograph palette — paper, ink, ocean, signal */
-  --paper: #f8f7f4;
-  --paper-2: #fffefb;
-  --ink: #1a1916;
-  --ink-soft: #5c584e;
-  --line: #e0ddd5;
-  --ocean: #0f9384;
-  --signal: #f5501f;
+  /* Compass palette — paper, ink, indigo, signal */
+  --paper: #f6f7fb;
+  --paper-2: #ffffff;
+  --ink: #0f172a;
+  --ink-soft: #475569;
+  --line: #e2e8f0;
+  --indigo: #6366f1;
+  --signal: #f97316;
 
-  --sans: 'Inter', 'Noto Sans JP', system-ui, 'Segoe UI', Roboto, sans-serif;
-  --display: 'Space Grotesk', 'Noto Sans JP', system-ui, sans-serif;
+  --sans: 'Plus Jakarta Sans', 'Noto Sans JP', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --display: 'Plus Jakarta Sans', 'Noto Sans JP', system-ui, sans-serif;
   --mono: 'Space Mono', ui-monospace, Consolas, monospace;
 
   color-scheme: light;
@@ -42,8 +42,8 @@ body {
 /* Signature element: a faint cartographer's grid, used behind hero surfaces */
 .map-grid {
   background-image:
-    linear-gradient(to right, rgba(15, 147, 132, 0.06) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(15, 147, 132, 0.06) 1px, transparent 1px);
+    linear-gradient(to right, rgba(99, 102, 241, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(99, 102, 241, 0.06) 1px, transparent 1px);
   background-size: 28px 28px;
 }
 

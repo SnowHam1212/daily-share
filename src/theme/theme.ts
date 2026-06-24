@@ -6,54 +6,56 @@ const config: ThemeConfig = {
 }
 
 /**
- * "Cartograph" design system.
+ * "Compass" design system (v2) — generated with UI/UX Pro Max.
  *
- * Daily Share is about sharing where you are and what your days hold, so the
- * visual language borrows from maps and field notebooks: paper surfaces, ink
- * text, an ocean-teal brand, and a single coral "signal" reserved for live
- * presence and the moments that matter most (today, now, primary actions).
+ * Daily Share is a team-collaboration utility (shared location, calendar,
+ * teams), so the visual language follows a clean Flat Design language tuned for
+ * dashboards: a calm indigo brand for trust and focus, a warm amber "signal"
+ * reserved for live presence and the moments that matter most (you-are-here,
+ * today, now, primary actions), cool slate neutrals, and Plus Jakarta Sans for
+ * a friendly, modern, productivity-app feel.
  */
 const theme = extendTheme({
   config,
   colors: {
-    // Brand — ocean teal (the "water" of a map)
+    // Brand — calm indigo (trust + focus, ideal for collaboration tools)
     primary: {
-      50: '#eafaf7',
-      100: '#cbf0e9',
-      200: '#9ce0d5',
-      300: '#5fc9ba',
-      400: '#2dad9c',
-      500: '#0f9384',
-      600: '#0b766b',
-      700: '#0c5e56',
-      800: '#0d4b46',
-      900: '#0a3e3a',
+      50: '#eef2ff',
+      100: '#e0e7ff',
+      200: '#c7d2fe',
+      300: '#a5b4fc',
+      400: '#818cf8',
+      500: '#6366f1',
+      600: '#4f46e5',
+      700: '#4338ca',
+      800: '#3730a3',
+      900: '#312e81',
     },
-    // Signal — coral, the "you are here" / live / now accent. Use sparingly.
+    // Signal — warm amber, the "you are here" / live / now accent. Use sparingly.
     signal: {
-      50: '#fff2ee',
-      100: '#ffe0d6',
-      200: '#ffc2ad',
-      300: '#ff9b78',
-      400: '#ff6f43',
-      500: '#f5501f',
-      600: '#d63d10',
-      700: '#b22f0d',
-      800: '#8f2810',
-      900: '#752411',
+      50: '#fff7ed',
+      100: '#ffedd5',
+      200: '#fed7aa',
+      300: '#fdba74',
+      400: '#fb923c',
+      500: '#f97316',
+      600: '#ea580c',
+      700: '#c2410c',
+      800: '#9a3412',
+      900: '#7c2d12',
     },
-    // Neutrals — warm ink on paper (overrides Chakra's cool grays)
+    // Neutrals — cool slate (clean, modern flat-design grays)
     gray: {
-      50: '#f8f7f4',
-      100: '#efede8',
-      200: '#e0ddd5',
-      300: '#c8c4b8',
-      400: '#a39e90',
-      500: '#7c776a',
-      600: '#5c584e',
-      700: '#423f38',
-      800: '#2a2823',
-      900: '#1a1916',
+      50: '#f8fafc',
+      100: '#f1f5f9',
+      200: '#e2e8f0',
+      300: '#cbd5e1',
+      400: '#94a3b8',
+      500: '#64748b',
+      600: '#475569',
+      700: '#334155',
+      800: '#1e293b',
+      900: '#0f172a',
     },
     danger: {
       50: '#fff1f2',
@@ -67,24 +69,25 @@ const theme = extendTheme({
       800: '#9f1239',
       900: '#881337',
     },
+    // Success — emerald (the collaboration palette's success green)
     success: {
-      50: '#f0fdf4',
-      100: '#dcfce7',
-      200: '#bbf7d0',
-      300: '#86efac',
-      400: '#4ade80',
-      500: '#22c55e',
-      600: '#16a34a',
-      700: '#15803d',
-      800: '#166534',
-      900: '#14532d',
+      50: '#ecfdf5',
+      100: '#d1fae5',
+      200: '#a7f3d0',
+      300: '#6ee7b7',
+      400: '#34d399',
+      500: '#10b981',
+      600: '#059669',
+      700: '#047857',
+      800: '#065f46',
+      900: '#064e3b',
     },
-    paper: '#f8f7f4',
-    'paper-2': '#fffefb',
+    paper: '#f6f7fb',
+    'paper-2': '#ffffff',
   },
   fonts: {
-    body: "'Inter', 'Noto Sans JP', system-ui, 'Segoe UI', Roboto, sans-serif",
-    heading: "'Space Grotesk', 'Noto Sans JP', system-ui, sans-serif",
+    body: "'Plus Jakarta Sans', 'Noto Sans JP', system-ui, 'Segoe UI', Roboto, sans-serif",
+    heading: "'Plus Jakarta Sans', 'Noto Sans JP', system-ui, sans-serif",
     mono: "'Space Mono', ui-monospace, Consolas, monospace",
   },
   fontSizes: {
@@ -114,10 +117,11 @@ const theme = extendTheme({
     full: '9999px',
   },
   shadows: {
-    sm: '0 1px 2px 0 rgba(26, 25, 22, 0.06)',
-    md: '0 2px 4px -1px rgba(26, 25, 22, 0.06), 0 6px 16px -4px rgba(26, 25, 22, 0.08)',
-    lg: '0 8px 24px -6px rgba(26, 25, 22, 0.12), 0 2px 6px -2px rgba(26, 25, 22, 0.06)',
-    focus: '0 0 0 3px rgba(15, 147, 132, 0.25)',
+    // Flat design: minimal, soft elevation with a cool slate tint
+    sm: '0 1px 2px 0 rgba(15, 23, 42, 0.05)',
+    md: '0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 4px 12px -2px rgba(15, 23, 42, 0.06)',
+    lg: '0 4px 16px -4px rgba(15, 23, 42, 0.10), 0 2px 6px -2px rgba(15, 23, 42, 0.05)',
+    focus: '0 0 0 3px rgba(99, 102, 241, 0.30)',
   },
   styles: {
     global: {
