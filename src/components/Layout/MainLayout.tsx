@@ -21,9 +21,38 @@ import {
 } from '@chakra-ui/react'
 import { useAuth } from '../../hooks/useAuth'
 import { Wordmark } from '../ui/Wordmark'
-import { MapView } from '../Map/MapView'
 
 // CalendarTab is implemented in src/components/Calendar/CalendarTab.tsx
+
+function MapTab() {
+  return (
+    <Flex
+      className="map-grid"
+      bg="paper-2"
+      direction="column"
+      align="center"
+      justify="center"
+      textAlign="center"
+      borderRadius="2xl"
+      border="1px solid"
+      borderColor="gray.200"
+      px={8}
+      py={20}
+      minH="calc(100vh - 220px)"
+      gap={4}
+    >
+      <Wordmark markOnly size="lg" />
+      <Box>
+        <Text fontFamily="heading" fontSize="2xl" fontWeight="700" color="gray.900">
+          みんなの居場所がここに集まります
+        </Text>
+        <Text color="gray.500" mt={2} maxW="sm">
+          位置情報を共有すると、仲間が今どこにいるかを地図上でリアルタイムに見られます。
+        </Text>
+      </Box>
+    </Flex>
+  )
+}
 
 export function MainLayout() {
   const { profile, signOut } = useAuth()
@@ -36,7 +65,6 @@ export function MainLayout() {
         index={tabIndex}
         onChange={(index) => setTabIndex(index)}
         variant="unstyled"
-        isLazy
       >
         <Box
           as="header"
@@ -112,7 +140,7 @@ export function MainLayout() {
               <CalendarTab />
             </TabPanel>
             <TabPanel p={0}>
-              <MapView />
+              <MapTab />
             </TabPanel>
           </TabPanels>
         </Container>
