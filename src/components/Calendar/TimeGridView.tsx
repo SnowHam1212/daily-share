@@ -23,6 +23,7 @@ interface TimeGridViewProps {
   now: Date
   currentUserId: string | undefined
   onSlotClick: (day: Date, minute: number) => void
+  onAllDayClick: (day: Date) => void
   onDelete: (id: string) => void
 }
 
@@ -32,6 +33,7 @@ export function TimeGridView({
   now,
   currentUserId,
   onSlotClick,
+  onAllDayClick,
   onDelete,
 }: TimeGridViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -49,15 +51,24 @@ export function TimeGridView({
     return Math.max(0, Math.min(23 * 60 + 45, snapped))
   }
 
-  const hasAllDay = events.some((e) => e.isAllDay)
   const minColWidth = days.length === 1 ? 'auto' : '100px'
 
   return (
     <Box bg="paper-2" border="1px solid" borderColor="gray.200" borderRadius="xl" overflow="hidden">
       <Box overflowX="auto">
         <Box minW={days.length === 1 ? 'auto' : '760px'}>
-          {/* Day headers */}
-          <Flex borderBottom="1px solid" borderColor="gray.200">
+          {/* Single scroll container so the header and the time grid share the
+              same width and the same scrollbar — keeps columns aligned. */}
+          <Flex
+            ref={scrollRef}
+            direction="column"
+            overflowY="auto"
+            maxH={{ base: '60vh', md: 'calc(100vh - 320px)' }}
+          >
+            {/* Sticky header: day labels + all-day row stay visible while scrolling */}
+            <Box position="sticky" top={0} zIndex={4} bg="paper-2">
+              {/* Day headers */}
+              <Flex borderBottom="1px solid" borderColor="gray.200">
             <Box w={`${GUTTER}px`} flexShrink={0} />
             {days.map((d) => {
               const today = isSameDay(d, now)
@@ -95,8 +106,7 @@ export function TimeGridView({
             })}
           </Flex>
 
-          {/* All-day row */}
-          {hasAllDay && (
+          {/* All-day row — always visible so empty days can be clicked to add */}
             <Flex borderBottom="1px solid" borderColor="gray.200" bg="gray.50">
               <Center w={`${GUTTER}px`} flexShrink={0} px={1}>
                 <Text fontSize="10px" fontWeight="bold" color="gray.400">
@@ -116,6 +126,10 @@ export function TimeGridView({
                     minH="32px"
                     borderLeft="1px solid"
                     borderColor="gray.100"
+                    cursor="pointer"
+                    transition="background 0.1s"
+                    _hover={{ bg: 'primary.50' }}
+                    onClick={() => onAllDayClick(d)}
                   >
                     {allDay.map((ev) => {
                       const style = EVENT_STYLE[ev.sharingState as SharingState] ?? EVENT_STYLE.private
@@ -133,6 +147,7 @@ export function TimeGridView({
                           borderRadius="sm"
                           px={1.5}
                           py={0.5}
+                          onClick={(e) => e.stopPropagation()}
                         >
                           <Text fontSize="xs" fontWeight="600" color={style.text} noOfLines={1}>
                             {ev.name}
@@ -160,15 +175,10 @@ export function TimeGridView({
                 )
               })}
             </Flex>
-          )}
+            </Box>
 
-          {/* Scrollable time grid */}
-          <Flex
-            ref={scrollRef}
-            overflowY="auto"
-            maxH={{ base: '60vh', md: 'calc(100vh - 320px)' }}
-            position="relative"
-          >
+            {/* Time grid — scrolls under the sticky header above */}
+            <Flex position="relative">
             <Box w={`${GUTTER}px`} flexShrink={0} position="relative" h={`${TOTAL_HEIGHT}px`}>
               {Array.from({ length: 23 }).map((_, i) => {
                 const hour = i + 1
@@ -331,6 +341,7 @@ export function TimeGridView({
                   </Box>
                 )
               })}
+            </Flex>
             </Flex>
           </Flex>
         </Box>

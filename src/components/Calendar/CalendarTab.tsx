@@ -14,7 +14,7 @@ import {
   Spinner,
   Center,
 } from '@chakra-ui/react'
-import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, AddIcon } from '@chakra-ui/icons'
+import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from '@chakra-ui/icons'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { Button } from '../ui/Button'
@@ -169,6 +169,12 @@ export default function CalendarTab() {
     onOpen()
   }
 
+  function openAllDay(day: Date) {
+    const dateStr = toDateInput(day)
+    setForm({ ...EMPTY_FORM, isAllDay: true, startDate: dateStr, endDate: dateStr })
+    onOpen()
+  }
+
   function openDayView(day: Date) {
     setAnchor(startOfDay(day))
     setView('day')
@@ -301,9 +307,6 @@ export default function CalendarTab() {
                 ))}
               </MenuList>
             </Menu>
-            <Button variant="signal" leftIcon={<AddIcon boxSize={3} />} onClick={openBlank}>
-              予定を追加
-            </Button>
           </HStack>
         </Flex>
 
@@ -325,6 +328,7 @@ export default function CalendarTab() {
             now={now}
             currentUserId={user?.id}
             onSlotClick={openSlot}
+            onAllDayClick={openAllDay}
             onDelete={handleDelete}
           />
         )}
