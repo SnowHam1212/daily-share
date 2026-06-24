@@ -33,17 +33,67 @@ export function CalendarSidebar({
   const [miniMonth, setMiniMonth] = useState(() => new Date(anchor))
   const days = monthGridDays(miniMonth)
 
+  // Jump the whole calendar to today and bring the mini calendar back to it.
+  function goToday() {
+    onPickDate(now)
+    setMiniMonth(new Date(now))
+  }
+
   return (
     <Box w="260px" flexShrink={0} display={{ base: 'none', lg: 'block' }} pr={6}>
       <Button
         variant="signal"
         leftIcon={<AddIcon boxSize={3} />}
         onClick={onCreate}
-        mb={6}
+        mb={4}
         boxShadow="md"
       >
         作成
       </Button>
+
+      {/* Always-visible "today" card — jumps to today on click */}
+      <Flex
+        as="button"
+        type="button"
+        onClick={goToday}
+        align="center"
+        gap={3}
+        w="full"
+        mb={6}
+        p={2.5}
+        borderRadius="xl"
+        border="1px solid"
+        borderColor="gray.200"
+        bg="paper-2"
+        textAlign="left"
+        transition="all 0.15s"
+        _hover={{ borderColor: 'signal.300', bg: 'signal.50' }}
+      >
+        <Center
+          boxSize={12}
+          flexShrink={0}
+          flexDirection="column"
+          lineHeight="1"
+          borderRadius="lg"
+          bg="signal.500"
+          color="white"
+        >
+          <Text fontSize="9px" fontWeight="bold">
+            {now.getMonth() + 1}月
+          </Text>
+          <Text fontFamily="heading" fontWeight="700" fontSize="lg">
+            {now.getDate()}
+          </Text>
+        </Center>
+        <Box>
+          <Text fontSize="xs" color="gray.500">
+            今日
+          </Text>
+          <Text fontSize="sm" fontWeight="600" color="gray.900">
+            {now.toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' })}
+          </Text>
+        </Box>
+      </Flex>
 
       {/* Mini month calendar */}
       <Box mb={6}>
@@ -93,6 +143,8 @@ export function CalendarSidebar({
                     selected ? 'white' : today ? 'signal.600' : inMonth ? 'gray.700' : 'gray.300'
                   }
                   bg={selected ? 'primary.500' : 'transparent'}
+                  border={today && !selected ? '1.5px solid' : '1.5px solid transparent'}
+                  borderColor={today && !selected ? 'signal.400' : 'transparent'}
                   _hover={{ bg: selected ? 'primary.600' : 'gray.100' }}
                   onClick={() => onPickDate(d)}
                 >
