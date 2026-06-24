@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
-import { Box, Flex, HStack, Text, Select, VStack, Alert, AlertIcon, Badge } from '@chakra-ui/react'
+import { Box, Button, Flex, HStack, Text, Select, VStack, Alert, AlertIcon, Badge } from '@chakra-ui/react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { useRealtimeLocations } from '../../hooks/useRealtime'
@@ -14,7 +14,6 @@ type LatLng = { lat: number; lng: number }
 function RecenterMap({ position }: { position: LatLng | null }) {
   const map = useMap()
 
-  // 【追加】タブが開かれた直後に、地図のサイズを強制的に再計算させる（グレー画面対策）
   useEffect(() => {
     const timer = setTimeout(() => {
       map.invalidateSize()
@@ -22,7 +21,6 @@ function RecenterMap({ position }: { position: LatLng | null }) {
     return () => clearTimeout(timer)
   }, [map])
 
-  // 位置情報が取得・更新されたら、その場所へカメラを移動させる
   useEffect(() => {
     if (position) {
       map.setView([position.lat, position.lng], map.getZoom())
@@ -34,7 +32,7 @@ function RecenterMap({ position }: { position: LatLng | null }) {
 
 export default function MapTab() {
   const { user } = useAuth()
-  const locations = useRealtimeLocations()
+  const { locations, fetchLocations } = useRealtimeLocations()
   const [sharingState, setSharingState] = useState<LocationRow['sharingState']>('private')
   const [currentPosition, setCurrentPosition] = useState<LatLng | null>(null)
   const [permissionError, setPermissionError] = useState<string | null>(null)
@@ -106,20 +104,11 @@ export default function MapTab() {
     [user],
   )
 
-  useEffect(() => {
+  const handleRefresh = useCallback(async () => {
     if (!user || !currentPosition) return
-    void upsertLocation(currentPosition, sharingState)
-  }, [currentPosition, sharingState, upsertLocation, user])
-
-  useEffect(() => {
-    if (!user || !currentPosition) return
-
-    const intervalId = window.setInterval(() => {
-      void upsertLocation(currentPosition, sharingState)
-    }, 10000)
-
-    return () => window.clearInterval(intervalId)
-  }, [currentPosition, sharingState, upsertLocation, user])
+    await upsertLocation(currentPosition, sharingState)
+    await fetchLocations()
+  }, [user, currentPosition, sharingState, upsertLocation, fetchLocations])
 
   const currentPositionLabel = currentPosition
     ? `${currentPosition.lat.toFixed(5)}, ${currentPosition.lng.toFixed(5)}`
@@ -139,6 +128,15 @@ export default function MapTab() {
             </Badge>
             <Text>{currentPositionLabel}</Text>
             <Text>{saving ? '保存中...' : lastSavedAt ? `最終更新: ${lastSavedAt}` : ''}</Text>
+            <Button
+              size="sm"
+              colorScheme="blue"
+              isLoading={saving}
+              isDisabled={!currentPosition}
+              onClick={() => void handleRefresh()}
+            >
+              マップを更新
+            </Button>
           </HStack>
         </VStack>
 
