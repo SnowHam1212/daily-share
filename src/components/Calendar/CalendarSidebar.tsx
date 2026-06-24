@@ -1,5 +1,23 @@
-import { useState } from 'react'
-import { Box, Flex, Grid, Text, VStack, HStack, IconButton, Checkbox, Center } from '@chakra-ui/react'
+import { useMemo, useState } from 'react'
+import {
+  Box,
+  Flex,
+  Grid,
+  Text,
+  VStack,
+  HStack,
+  IconButton,
+  Checkbox,
+  Center,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverBody,
+  PopoverArrow,
+  Select,
+  SimpleGrid,
+  useDisclosure,
+} from '@chakra-ui/react'
 import { ChevronLeftIcon, ChevronRightIcon, AddIcon } from '@chakra-ui/icons'
 import { Button } from '../ui/Button'
 import {
@@ -33,6 +51,12 @@ export function CalendarSidebar({
   const [miniMonth, setMiniMonth] = useState(() => new Date(anchor))
   const days = monthGridDays(miniMonth)
 
+  const { isOpen, onOpen, onClose } = useDisclosure()
+  const yearOptions = useMemo(() => {
+    const base = miniMonth.getFullYear()
+    return Array.from({ length: 21 }, (_, i) => base - 10 + i)
+  }, [miniMonth])
+
   return (
     <Box w="260px" flexShrink={0} display={{ base: 'none', lg: 'block' }} pr={6}>
       <Button
@@ -48,9 +72,64 @@ export function CalendarSidebar({
       {/* Mini month calendar */}
       <Box mb={6}>
         <Flex align="center" justify="space-between" mb={2}>
-          <Text fontFamily="heading" fontWeight="700" fontSize="sm" color="gray.900">
-            {miniMonth.getFullYear()}年 {miniMonth.getMonth() + 1}月
-          </Text>
+          <Popover isOpen={isOpen} onOpen={onOpen} onClose={onClose} placement="bottom-start">
+            <PopoverTrigger>
+              <Text
+                fontFamily="heading"
+                fontWeight="700"
+                fontSize="sm"
+                color="gray.900"
+                cursor="pointer"
+                px={1.5}
+                py={1}
+                borderRadius="md"
+                _hover={{ bg: 'gray.100' }}
+                title="クリックで年月を移動"
+              >
+                {miniMonth.getFullYear()}年 {miniMonth.getMonth() + 1}月
+              </Text>
+            </PopoverTrigger>
+            <PopoverContent w="260px">
+              <PopoverArrow />
+              <PopoverBody>
+                <Text fontSize="xs" fontWeight="600" mb={1} color="gray.500">
+                  年
+                </Text>
+                <Select
+                  size="sm"
+                  mb={3}
+                  value={miniMonth.getFullYear()}
+                  onChange={(e) =>
+                    setMiniMonth((m) => new Date(Number(e.target.value), m.getMonth(), 1))
+                  }
+                >
+                  {yearOptions.map((y) => (
+                    <option key={y} value={y}>
+                      {y}年
+                    </option>
+                  ))}
+                </Select>
+                <Text fontSize="xs" fontWeight="600" mb={1} color="gray.500">
+                  月
+                </Text>
+                <SimpleGrid columns={4} spacing={2}>
+                  {Array.from({ length: 12 }, (_, m) => (
+                    <Button
+                      key={m}
+                      size="sm"
+                      variant={miniMonth.getMonth() === m ? 'signal' : 'secondary'}
+                      onClick={() => {
+                        setMiniMonth((cur) => new Date(cur.getFullYear(), m, 1))
+                        onClose()
+                      }}
+                    >
+                      {m + 1}月
+                    </Button>
+                  ))}
+                </SimpleGrid>
+              </PopoverBody>
+            </PopoverContent>
+          </Popover>
           <HStack spacing={0}>
             <IconButton
               aria-label="前の月"
