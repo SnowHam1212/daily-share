@@ -45,6 +45,10 @@ export default function MapTab() {
   )
 
   useEffect(() => {
+    void fetchLocations()
+  }, [fetchLocations])
+
+  useEffect(() => {
     if (!user) return
     if (!('geolocation' in navigator)) {
       setPermissionError('このブラウザでは位置情報が利用できません。')
