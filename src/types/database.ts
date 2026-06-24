@@ -113,6 +113,7 @@ export type Database = {
           name: string
           startAt: string
           endAt: string
+          isAllDay: boolean
           eventLocation: string | null
           sharingState: 'private' | 'friends' | 'team'
           createdAt: string | null
@@ -124,6 +125,7 @@ export type Database = {
           name: string
           startAt: string
           endAt: string
+          isAllDay?: boolean
           eventLocation?: string | null
           sharingState?: 'private' | 'friends' | 'team'
           createdAt?: string | null
@@ -135,6 +137,7 @@ export type Database = {
           name?: string
           startAt?: string
           endAt?: string
+          isAllDay?: boolean
           eventLocation?: string | null
           sharingState?: 'private' | 'friends' | 'team'
           createdAt?: string | null

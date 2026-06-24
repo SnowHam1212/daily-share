@@ -17,43 +17,13 @@ import {
   Text,
   Avatar,
   HStack,
-  VStack,
   Container,
 } from '@chakra-ui/react'
 import { useAuth } from '../../hooks/useAuth'
 import { Wordmark } from '../ui/Wordmark'
+import { MapView } from '../Map/MapView'
 
 // CalendarTab is implemented in src/components/Calendar/CalendarTab.tsx
-
-function MapTab() {
-  return (
-    <Flex
-      className="map-grid"
-      bg="paper-2"
-      direction="column"
-      align="center"
-      justify="center"
-      textAlign="center"
-      borderRadius="2xl"
-      border="1px solid"
-      borderColor="gray.200"
-      px={8}
-      py={20}
-      minH="calc(100vh - 220px)"
-      gap={4}
-    >
-      <Wordmark markOnly size="lg" />
-      <Box>
-        <Text fontFamily="heading" fontSize="2xl" fontWeight="700" color="gray.900">
-          みんなの居場所がここに集まります
-        </Text>
-        <Text color="gray.500" mt={2} maxW="sm">
-          位置情報を共有すると、仲間が今どこにいるかを地図上でリアルタイムに見られます。
-        </Text>
-      </Box>
-    </Flex>
-  )
-}
 
 export function MainLayout() {
   const { profile, signOut } = useAuth()
@@ -138,12 +108,10 @@ export function MainLayout() {
         <Container as="main" maxW="6xl" px={{ base: 4, md: 6 }} py={{ base: 5, md: 8 }}>
           <TabPanels>
             <TabPanel p={0}>
-              <VStack align="stretch" spacing={6}>
-                <CalendarTab />
-              </VStack>
+              <CalendarTab />
             </TabPanel>
             <TabPanel p={0}>
-              <MapTab />
+              <MapView />
             </TabPanel>
           </TabPanels>
         </Container>

@@ -149,7 +149,9 @@ const theme = extendTheme({
         _focusVisible: { boxShadow: 'focus' },
       },
       sizes: {
-        md: { h: 11, px: 5 },
+        sm: { h: 9, minW: 9, fontSize: 'sm', px: 4 },
+        md: { h: 11, minW: 11, fontSize: 'md', px: 6 },
+        lg: { h: 13, minW: 13, fontSize: 'lg', px: 8 },
       },
       variants: {
         // Brand action — ocean teal
