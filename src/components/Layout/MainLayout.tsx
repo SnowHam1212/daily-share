@@ -1,11 +1,9 @@
 import { useState } from 'react'
 import CalendarTab from '../Calendar/CalendarTab'
 import MapTab from '../Map/MapTab'
-
 import {
   Box,
   Flex,
-  Heading,
   Tabs,
   TabList,
   TabPanels,
@@ -15,53 +13,101 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
+  MenuDivider,
   Button,
+  Text,
+  Avatar,
+  HStack,
+  Container,
 } from '@chakra-ui/react'
 import { useAuth } from '../../hooks/useAuth'
+import { Wordmark } from '../ui/Wordmark'
+
+// CalendarTab is implemented in src/components/Calendar/CalendarTab.tsx
+// MapTab (live Leaflet map) is implemented in src/components/Map/MapTab.tsx
 
 export function MainLayout() {
   const { profile, signOut } = useAuth()
   const [tabIndex, setTabIndex] = useState(0)
+  const name = profile?.displayName ?? 'ゲスト'
 
   return (
-    <Box minH="100vh" bg="gray.50">
+    <Box minH="100vh" bg="paper">
       <Tabs
         index={tabIndex}
         onChange={(index) => setTabIndex(index)}
-        variant="soft-rounded"
-        colorScheme="blue"
+        variant="unstyled"
         isLazy
       >
         <Box
           as="header"
-          bg="white"
-          px={6}
-          py={4}
-          boxShadow="sm"
+          bg="paper-2"
+          borderBottom="1px solid"
+          borderColor="gray.200"
           position="sticky"
           top={0}
           zIndex={10}
         >
-          <Flex align="center" gap={4}>
-            <Heading size="md">Daily Share</Heading>
+          <Container maxW="6xl" px={{ base: 4, md: 6 }}>
+            <Flex align="center" justify="space-between" h={16} gap={4}>
+              <Wordmark size="sm" />
 
-            <TabList flex="1">
-              <Tab>📅 カレンダー</Tab>
-              <Tab>🗺️ マップ</Tab>
-            </TabList>
+              <TabList gap={1} bg="gray.100" p={1} borderRadius="full">
+                {[
+                  { icon: '🗓', label: 'カレンダー' },
+                  { icon: '🗺', label: 'マップ' },
+                ].map((t) => (
+                  <Tab
+                    key={t.label}
+                    borderRadius="full"
+                    px={{ base: 3, md: 5 }}
+                    py={2}
+                    fontSize="sm"
+                    fontWeight="semibold"
+                    color="gray.500"
+                    transition="all 0.15s"
+                    _selected={{ bg: 'paper-2', color: 'primary.700', boxShadow: 'sm' }}
+                    _hover={{ color: 'gray.700' }}
+                  >
+                    <HStack spacing={1.5}>
+                      <Box as="span">{t.icon}</Box>
+                      <Box as="span" display={{ base: 'none', sm: 'block' }}>
+                        {t.label}
+                      </Box>
+                    </HStack>
+                  </Tab>
+                ))}
+              </TabList>
 
-            <Menu>
-              <MenuButton as={Button} variant="ghost">
-                {profile?.displayName ?? 'プロフィール'}
-              </MenuButton>
-              <MenuList>
-                <MenuItem onClick={() => signOut()}>ログアウト</MenuItem>
-              </MenuList>
-            </Menu>
-          </Flex>
+              <Menu>
+                <MenuButton
+                  as={Button}
+                  variant="ghost"
+                  px={2}
+                  borderRadius="full"
+                >
+                  <Avatar size="sm" name={name} bg="primary.500" color="white" />
+                </MenuButton>
+                <MenuList borderRadius="xl" borderColor="gray.200" boxShadow="lg">
+                  <Box px={3} py={2}>
+                    <Text fontSize="xs" color="gray.500">
+                      ログイン中
+                    </Text>
+                    <Text fontWeight="semibold" color="gray.900">
+                      {name}
+                    </Text>
+                  </Box>
+                  <MenuDivider borderColor="gray.200" />
+                  <MenuItem onClick={() => signOut()} color="danger.600">
+                    ログアウト
+                  </MenuItem>
+                </MenuList>
+              </Menu>
+            </Flex>
+          </Container>
         </Box>
 
-        <Box as="main" p={6}>
+        <Container as="main" maxW="6xl" px={{ base: 4, md: 6 }} py={{ base: 5, md: 8 }}>
           <TabPanels>
             <TabPanel p={0}>
               <CalendarTab />
@@ -70,7 +116,7 @@ export function MainLayout() {
               <MapTab />
             </TabPanel>
           </TabPanels>
-        </Box>
+        </Container>
       </Tabs>
     </Box>
   )
