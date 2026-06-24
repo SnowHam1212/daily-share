@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet'
 import { Box, Button, Flex, HStack, Text, Select, VStack, Alert, AlertIcon, Badge } from '@chakra-ui/react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -48,6 +48,26 @@ function RecenterMap({ position }: { position: LatLng | null }) {
       centered.current = true
     }
   }, [map, position])
+
+  return null
+}
+
+function TripleClickRecenter({ position }: { position: LatLng | null }) {
+  const map = useMap()
+  const clickCount = useRef(0)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useMapEvents({
+    click() {
+      clickCount.current += 1
+      if (timer.current) clearTimeout(timer.current)
+      timer.current = setTimeout(() => { clickCount.current = 0 }, 500)
+      if (clickCount.current >= 3 && position) {
+        map.setView([position.lat, position.lng], map.getZoom())
+        clickCount.current = 0
+      }
+    },
+  })
 
   return null
 }
@@ -219,6 +239,7 @@ export default function MapTab() {
             url={TILE_LAYERS[tileLayer].url}
           />
           {currentPosition && <RecenterMap position={currentPosition} />}
+          <TripleClickRecenter position={currentPosition} />
           {markers.map((loc) => (
             <Marker
               key={loc.userId}
