@@ -56,3 +56,8 @@ coverage/
 
 *storybook.log
 storybook-static
+
+# ============================================
+# AI ツール（UI/UX Pro Max スキル本体は生成物）
+# ============================================
+.claude/skills/
