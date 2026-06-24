@@ -8,24 +8,13 @@ import {
   VStack,
   IconButton,
   useDisclosure,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  ModalCloseButton,
-  FormControl,
-  FormLabel,
-  Select,
-  Textarea,
   Spinner,
 } from '@chakra-ui/react'
 import { ArrowLeftIcon, ArrowRightIcon, AddIcon, DeleteIcon } from '@chakra-ui/icons'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { Button } from '../ui/Button'
-import { Input } from '../ui/Input'
+import { EventModal } from './EventModal'
 import type { Database } from '../../types/database'
 
 type EventRow = Database['public']['Tables']['events']['Row']
@@ -51,13 +40,6 @@ export default function CalendarTab() {
   const [loading, setLoading] = useState(false)
 
   const { isOpen, onOpen, onClose } = useDisclosure()
-  const [form, setForm] = useState({
-    name: '',
-    startAt: '',
-    endAt: '',
-    eventLocation: '',
-    sharingState: 'private',
-  })
 
   const teamIds = useMemo(() => teams.map((t) => t.id), [teams])
 
@@ -115,27 +97,7 @@ export default function CalendarTab() {
     })
   }
 
-  async function handleCreate() {
-    if (!user) return
-    if (!teams || teams.length === 0) return
-    const teamId = teams[0].id
-    try {
-      await supabase.from('events').insert({
-        createdBy: user.id,
-        teamId,
-        name: form.name,
-        startAt: new Date(form.startAt).toISOString(),
-        endAt: new Date(form.endAt).toISOString(),
-        eventLocation: form.eventLocation || null,
-        sharingState: form.sharingState as EventRow['sharingState'],
-      })
-      setForm({ name: '', startAt: '', endAt: '', eventLocation: '', sharingState: 'private' })
-      onClose()
-      fetchEvents()
-    } catch (err) {
-      console.error('create event error', err)
-    }
-  }
+
 
   async function handleDelete(id: string) {
     try {
@@ -187,48 +149,15 @@ export default function CalendarTab() {
         </Grid>
       )}
 
-      <Modal isOpen={isOpen} onClose={onClose}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Add Event</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <FormControl mb={3}>
-              <FormLabel>Name</FormLabel>
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            </FormControl>
-
-            <FormControl mb={3}>
-              <FormLabel>Start</FormLabel>
-              <Input type="datetime-local" value={form.startAt} onChange={(e) => setForm({ ...form, startAt: e.target.value })} />
-            </FormControl>
-
-            <FormControl mb={3}>
-              <FormLabel>End</FormLabel>
-              <Input type="datetime-local" value={form.endAt} onChange={(e) => setForm({ ...form, endAt: e.target.value })} />
-            </FormControl>
-
-            <FormControl mb={3}>
-              <FormLabel>Location</FormLabel>
-              <Textarea value={form.eventLocation} onChange={(e) => setForm({ ...form, eventLocation: e.target.value })} />
-            </FormControl>
-
-            <FormControl mb={3}>
-              <FormLabel>Sharing</FormLabel>
-              <Select value={form.sharingState} onChange={(e) => setForm({ ...form, sharingState: e.target.value })}>
-                <option value="private">Private</option>
-                <option value="friends">Friends</option>
-                <option value="team">Team</option>
-              </Select>
-            </FormControl>
-          </ModalBody>
-
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={onClose}>Cancel</Button>
-            <Button onClick={handleCreate}>Create</Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      {teams && teams.length > 0 && (
+        <EventModal
+          isOpen={isOpen}
+          onClose={onClose}
+          teamId={teams[0].id}
+          userId={user?.id}
+          onEventCreated={fetchEvents}
+        />
+      )}
     </Box>
   )
 }
