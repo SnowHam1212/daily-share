@@ -153,9 +153,11 @@ const theme = extendTheme({
         _focusVisible: { boxShadow: 'focus' },
       },
       sizes: {
-        sm: { h: 9, minW: 9, fontSize: 'sm', px: 4 },
-        md: { h: 11, minW: 11, fontSize: 'md', px: 6 },
-        lg: { h: 13, minW: 13, fontSize: 'lg', px: 8 },
+        // NOTE: use rem strings, not 9/11/13 — those keys don't exist in
+        // Chakra's spacing scale (…8,10,12,14…), so `h: 11` renders as 11px.
+        sm: { h: '2.25rem', minW: '2.25rem', fontSize: 'sm', px: 4 },
+        md: { h: '2.75rem', minW: '2.75rem', fontSize: 'md', px: 6 },
+        lg: { h: '3.25rem', minW: '3.25rem', fontSize: 'lg', px: 8 },
       },
       variants: {
         // Brand action — ocean teal
