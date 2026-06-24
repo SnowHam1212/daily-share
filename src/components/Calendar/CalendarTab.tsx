@@ -95,8 +95,11 @@ function toDateInput(d: Date) {
   return `${y}-${m}-${dd}`
 }
 
-function hourLabel(h: number) {
-  return `${String(h).padStart(2, '0')}:00`
+// minutes-from-midnight → "HH:MM"
+function minuteToTime(min: number) {
+  const h = Math.floor(min / 60)
+  const m = min % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
 // Does the event's [start, end) range touch the given calendar day?
@@ -199,27 +202,32 @@ export default function CalendarTab() {
     eventLocation: '',
     sharingState: 'private',
   })
-  // The 1-hour slot currently hovered in the time grid (Google-style ghost).
-  const [hoverSlot, setHoverSlot] = useState<{ dayIso: string; hour: number } | null>(null)
+  // The slot currently hovered in the time grid (Google-style ghost),
+  // snapped to 15-minute increments (minutes from midnight).
+  const [hoverSlot, setHoverSlot] = useState<{ dayIso: string; minute: number } | null>(null)
 
-  // Convert a mouse event over a day column into an hour (0–23).
-  function hourFromPointer(e: React.MouseEvent<HTMLDivElement>) {
+  // Convert a mouse event over a day column into minutes-from-midnight,
+  // snapped to the nearest 15 minutes (0 … 23:45).
+  function minuteFromPointer(e: React.MouseEvent<HTMLDivElement>) {
     const rect = e.currentTarget.getBoundingClientRect()
     const y = e.clientY - rect.top
-    return Math.max(0, Math.min(23, Math.floor(y / HOUR_HEIGHT)))
+    const raw = (y / HOUR_HEIGHT) * 60
+    const snapped = Math.floor(raw / 15) * 15
+    return Math.max(0, Math.min(23 * 60 + 45, snapped))
   }
 
   // Open the add modal prefilled with the clicked day + 1-hour slot.
-  function openSlot(day: Date, hour: number) {
+  function openSlot(day: Date, minute: number) {
     const dateStr = toDateInput(day)
+    const endMinute = minute + 60
     setForm({
       name: '',
       isAllDay: false,
       startDate: dateStr,
-      startTime: hourLabel(hour),
+      startTime: minuteToTime(minute),
       endDate: dateStr,
-      // 23:00 slot has no same-day end hour; leave blank so it defaults to +1h.
-      endTime: hour < 23 ? hourLabel(hour + 1) : '',
+      // If +1h would spill past midnight, leave blank so it defaults to +1h.
+      endTime: endMinute <= 24 * 60 ? minuteToTime(endMinute) : '',
       eventLocation: '',
       sharingState: 'private',
     })
@@ -599,7 +607,7 @@ export default function CalendarTab() {
                     const today = isSameDay(d, now)
                     const positioned = layoutDay(d, events)
                     const dayIso = d.toISOString()
-                    const ghostHour = hoverSlot?.dayIso === dayIso ? hoverSlot.hour : null
+                    const ghostMinute = hoverSlot?.dayIso === dayIso ? hoverSlot.minute : null
                     return (
                       <Box
                         key={dayIso}
@@ -609,24 +617,24 @@ export default function CalendarTab() {
                         borderColor="gray.100"
                         cursor="pointer"
                         onMouseMove={(e) => {
-                          const hour = hourFromPointer(e)
-                          if (hoverSlot?.dayIso !== dayIso || hoverSlot.hour !== hour) {
-                            setHoverSlot({ dayIso, hour })
+                          const minute = minuteFromPointer(e)
+                          if (hoverSlot?.dayIso !== dayIso || hoverSlot.minute !== minute) {
+                            setHoverSlot({ dayIso, minute })
                           }
                         }}
                         onMouseLeave={() =>
                           setHoverSlot((s) => (s?.dayIso === dayIso ? null : s))
                         }
-                        onClick={(e) => openSlot(d, hourFromPointer(e))}
+                        onClick={(e) => openSlot(d, minuteFromPointer(e))}
                       >
-                        {/* Ghost slot following the cursor (1-hour preview) */}
-                        {ghostHour !== null && (
+                        {/* Ghost slot following the cursor (1-hour preview, 15-min snap) */}
+                        {ghostMinute !== null && (
                           <Box
                             position="absolute"
-                            top={`${ghostHour * HOUR_HEIGHT}px`}
+                            top={`${(ghostMinute / 60) * HOUR_HEIGHT}px`}
                             left="2px"
                             right="2px"
-                            height={`${HOUR_HEIGHT - 2}px`}
+                            height={`${Math.min(HOUR_HEIGHT, ((24 * 60 - ghostMinute) / 60) * HOUR_HEIGHT) - 2}px`}
                             bg="primary.50"
                             border="1px dashed"
                             borderColor="primary.400"
@@ -637,7 +645,7 @@ export default function CalendarTab() {
                             zIndex={1}
                           >
                             <Text fontSize="10px" fontWeight="600" color="primary.700">
-                              + {hourLabel(ghostHour)}
+                              + {minuteToTime(ghostMinute)}
                             </Text>
                           </Box>
                         )}
