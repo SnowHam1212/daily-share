@@ -87,6 +87,18 @@ function minutesOfDay(d: Date) {
   return d.getHours() * 60 + d.getMinutes()
 }
 
+// Local "YYYY-MM-DD" for date inputs (avoids the UTC shift of toISOString).
+function toDateInput(d: Date) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${dd}`
+}
+
+function hourLabel(h: number) {
+  return `${String(h).padStart(2, '0')}:00`
+}
+
 // Does the event's [start, end) range touch the given calendar day?
 function overlapsDay(ev: EventRow, day: Date) {
   const ds = new Date(day)
@@ -187,6 +199,33 @@ export default function CalendarTab() {
     eventLocation: '',
     sharingState: 'private',
   })
+  // The 1-hour slot currently hovered in the time grid (Google-style ghost).
+  const [hoverSlot, setHoverSlot] = useState<{ dayIso: string; hour: number } | null>(null)
+
+  // Convert a mouse event over a day column into an hour (0–23).
+  function hourFromPointer(e: React.MouseEvent<HTMLDivElement>) {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const y = e.clientY - rect.top
+    return Math.max(0, Math.min(23, Math.floor(y / HOUR_HEIGHT)))
+  }
+
+  // Open the add modal prefilled with the clicked day + 1-hour slot.
+  function openSlot(day: Date, hour: number) {
+    const dateStr = toDateInput(day)
+    setForm({
+      name: '',
+      isAllDay: false,
+      startDate: dateStr,
+      startTime: hourLabel(hour),
+      endDate: dateStr,
+      // 23:00 slot has no same-day end hour; leave blank so it defaults to +1h.
+      endTime: hour < 23 ? hourLabel(hour + 1) : '',
+      eventLocation: '',
+      sharingState: 'private',
+    })
+    setHoverSlot(null)
+    onOpen()
+  }
 
   const teamIds = useMemo(() => teams.map((t) => t.id), [teams])
 
@@ -371,7 +410,23 @@ export default function CalendarTab() {
           </Box>
         </HStack>
 
-        <Button variant="signal" leftIcon={<AddIcon boxSize={3} />} onClick={onOpen}>
+        <Button
+          variant="signal"
+          leftIcon={<AddIcon boxSize={3} />}
+          onClick={() => {
+            setForm({
+              name: '',
+              isAllDay: false,
+              startDate: '',
+              startTime: '',
+              endDate: '',
+              endTime: '',
+              eventLocation: '',
+              sharingState: 'private',
+            })
+            onOpen()
+          }}
+        >
           予定を追加
         </Button>
       </Flex>
@@ -543,14 +598,50 @@ export default function CalendarTab() {
                   {week.map((d) => {
                     const today = isSameDay(d, now)
                     const positioned = layoutDay(d, events)
+                    const dayIso = d.toISOString()
+                    const ghostHour = hoverSlot?.dayIso === dayIso ? hoverSlot.hour : null
                     return (
                       <Box
-                        key={d.toISOString()}
+                        key={dayIso}
                         flex={1}
                         position="relative"
                         borderLeft="1px solid"
                         borderColor="gray.100"
+                        cursor="pointer"
+                        onMouseMove={(e) => {
+                          const hour = hourFromPointer(e)
+                          if (hoverSlot?.dayIso !== dayIso || hoverSlot.hour !== hour) {
+                            setHoverSlot({ dayIso, hour })
+                          }
+                        }}
+                        onMouseLeave={() =>
+                          setHoverSlot((s) => (s?.dayIso === dayIso ? null : s))
+                        }
+                        onClick={(e) => openSlot(d, hourFromPointer(e))}
                       >
+                        {/* Ghost slot following the cursor (1-hour preview) */}
+                        {ghostHour !== null && (
+                          <Box
+                            position="absolute"
+                            top={`${ghostHour * HOUR_HEIGHT}px`}
+                            left="2px"
+                            right="2px"
+                            height={`${HOUR_HEIGHT - 2}px`}
+                            bg="primary.50"
+                            border="1px dashed"
+                            borderColor="primary.400"
+                            borderRadius="sm"
+                            px={1.5}
+                            py={0.5}
+                            pointerEvents="none"
+                            zIndex={1}
+                          >
+                            <Text fontSize="10px" fontWeight="600" color="primary.700">
+                              + {hourLabel(ghostHour)}
+                            </Text>
+                          </Box>
+                        )}
+
                         {positioned.map(({ ev, start, end, fromPrev, toNext, colIndex, colCount }) => {
                           const style =
                             EVENT_STYLE[ev.sharingState as keyof typeof EVENT_STYLE] ??
@@ -576,6 +667,7 @@ export default function CalendarTab() {
                               cursor="default"
                               transition="filter 0.1s"
                               _hover={{ filter: 'brightness(0.97)', zIndex: 2 }}
+                              onClick={(e) => e.stopPropagation()}
                             >
                               <Flex justify="space-between" align="start" gap={1}>
                                 <Text
@@ -602,7 +694,10 @@ export default function CalendarTab() {
                                     opacity={0}
                                     _groupHover={{ opacity: 1 }}
                                     _hover={{ color: 'danger.500', bg: 'transparent' }}
-                                    onClick={() => handleDelete(ev.id)}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleDelete(ev.id)
+                                    }}
                                   />
                                 )}
                               </Flex>
