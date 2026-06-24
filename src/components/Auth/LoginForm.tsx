@@ -6,6 +6,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Card } from '../ui/Card'
+import { Wordmark } from '../ui/Wordmark'
 
 interface LoginFormProps {
   onSwitchToSignup?: () => void
@@ -28,79 +29,87 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
   }
 
   return (
-    <Flex minH="100vh" align="center" justify="center" px={4}>
-      <Card w="full" maxW="400px">
-        <VStack spacing={6} align="stretch">
-          <Box>
-            <Text fontSize="2xl" fontWeight="medium" color="gray.900">
-              Daily Share
-            </Text>
-            <Text fontSize="sm" color="gray.500" mt={1}>
-              アカウントにログインしてください
-            </Text>
-          </Box>
+    <Flex
+      className="map-grid"
+      minH="100vh"
+      align="center"
+      justify="center"
+      bg="paper"
+      px={4}
+      py={10}
+    >
+      <VStack spacing={6} w="full" maxW="400px">
+        <VStack spacing={3} textAlign="center">
+          <Wordmark size="lg" />
+          <Text fontSize="sm" color="gray.500" maxW="xs">
+            今いる場所と、これからの予定を、仲間と分かち合おう。
+          </Text>
+        </VStack>
 
-          <VStack as="form" onSubmit={handleSubmit} spacing={4} align="stretch">
-            {error && (
-              <Box
-                bg="danger.50"
-                border="1px solid"
-                borderColor="danger.200"
-                borderRadius="md"
-                px={3}
-                py={2}
-              >
-                <Text fontSize="sm" color="danger.600">{error}</Text>
-              </Box>
-            )}
-            <Input
-              label="メールアドレス"
-              id="email"
-              type="email"
-              placeholder="example@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <Input
-              label="パスワード"
-              id="password"
-              type="password"
-              placeholder="パスワードを入力"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <Button type="submit" isLoading={isLoading} w="full">
-              ログイン
+        <Card w="full" boxShadow="lg">
+          <VStack spacing={5} align="stretch">
+            <VStack as="form" onSubmit={handleSubmit} spacing={4} align="stretch">
+              {error && (
+                <Box
+                  bg="danger.50"
+                  border="1px solid"
+                  borderColor="danger.200"
+                  borderRadius="lg"
+                  px={3}
+                  py={2}
+                >
+                  <Text fontSize="sm" color="danger.600">{error}</Text>
+                </Box>
+              )}
+              <Input
+                label="メールアドレス"
+                id="email"
+                type="email"
+                placeholder="example@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <Input
+                label="パスワード"
+                id="password"
+                type="password"
+                placeholder="パスワードを入力"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <Button type="submit" isLoading={isLoading} w="full" mt={1}>
+                ログイン
+              </Button>
+            </VStack>
+
+            <HStack>
+              <Divider borderColor="gray.200" />
+              <Text fontSize="xs" color="gray.400" whiteSpace="nowrap">または</Text>
+              <Divider borderColor="gray.200" />
+            </HStack>
+
+            <Button variant="secondary" w="full" onClick={() => signInWithGoogle()}>
+              Google でログイン
             </Button>
           </VStack>
+        </Card>
 
-          <HStack>
-            <Divider />
-            <Text fontSize="xs" color="gray.400" whiteSpace="nowrap">または</Text>
-            <Divider />
-          </HStack>
-
-          <Button variant="secondary" w="full" onClick={() => signInWithGoogle()}>
-            Google でログイン
-          </Button>
-
-          {onSwitchToSignup && (
-            <Text textAlign="center" fontSize="sm" color="gray.500">
-              アカウントをお持ちでないですか？
-              {' '}
-              <Box
-                as="span"
-                color="primary.400"
-                cursor="pointer"
-                fontWeight="medium"
-                onClick={onSwitchToSignup}
-              >
-                新規登録
-              </Box>
-            </Text>
-          )}
-        </VStack>
-      </Card>
+        {onSwitchToSignup && (
+          <Text textAlign="center" fontSize="sm" color="gray.500">
+            アカウントをお持ちでないですか？
+            {' '}
+            <Box
+              as="span"
+              color="primary.600"
+              cursor="pointer"
+              fontWeight="semibold"
+              onClick={onSwitchToSignup}
+            >
+              新規登録
+            </Box>
+          </Text>
+        )}
+      </VStack>
     </Flex>
   )
 }

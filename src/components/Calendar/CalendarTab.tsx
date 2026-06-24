@@ -20,8 +20,11 @@ import {
   Select,
   Textarea,
   Spinner,
+  Flex,
+  Badge,
+  Center,
 } from '@chakra-ui/react'
-import { ArrowLeftIcon, ArrowRightIcon, AddIcon, DeleteIcon } from '@chakra-ui/icons'
+import { ChevronLeftIcon, ChevronRightIcon, AddIcon, DeleteIcon } from '@chakra-ui/icons'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { Button } from '../ui/Button'
@@ -29,6 +32,14 @@ import { Input } from '../ui/Input'
 import type { Database } from '../../types/database'
 
 type EventRow = Database['public']['Tables']['events']['Row']
+
+const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
+
+const SHARING = {
+  private: { label: '自分のみ', colorScheme: 'gray' },
+  friends: { label: '友だち', colorScheme: 'primary' },
+  team: { label: 'チーム', colorScheme: 'signal' },
+} as const
 
 function startOfWeek(d: Date) {
   const dt = new Date(d)
@@ -44,11 +55,24 @@ function addDays(d: Date, days: number) {
   return dt
 }
 
+function isSameDay(a: Date, b: Date) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  )
+}
+
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+}
+
 export default function CalendarTab() {
   const { user, teams } = useAuth()
   const [anchor, setAnchor] = useState(() => startOfWeek(new Date()))
   const [events, setEvents] = useState<EventRow[]>([])
   const [loading, setLoading] = useState(false)
+  const today = new Date()
 
   const { isOpen, onOpen, onClose } = useDisclosure()
   const [form, setForm] = useState({
@@ -99,6 +123,10 @@ export default function CalendarTab() {
     setAnchor((a) => addDays(a, 7))
   }
 
+  function goToday() {
+    setAnchor(startOfWeek(new Date()))
+  }
+
   function days() {
     const start = startOfWeek(anchor)
     return Array.from({ length: 7 }).map((_, i) => addDays(start, i))
@@ -114,6 +142,16 @@ export default function CalendarTab() {
       return s >= dayStart && s <= dayEnd
     })
   }
+
+  const weekStart = startOfWeek(anchor)
+  const weekEnd = addDays(weekStart, 6)
+  const rangeLabel = `${weekStart.toLocaleDateString('ja-JP', {
+    month: 'long',
+    day: 'numeric',
+  })} – ${weekEnd.toLocaleDateString('ja-JP', {
+    month: weekStart.getMonth() === weekEnd.getMonth() ? undefined : 'long',
+    day: 'numeric',
+  })}`
 
   async function handleCreate() {
     if (!user) return
@@ -148,84 +186,229 @@ export default function CalendarTab() {
 
   return (
     <Box>
-      <HStack justify="space-between" mb={4}>
-        <HStack>
-          <IconButton aria-label="prev" icon={<ArrowLeftIcon />} onClick={prevWeek} />
-          <IconButton aria-label="next" icon={<ArrowRightIcon />} onClick={nextWeek} />
-          <Heading size="md">Week of {anchor.toDateString()}</Heading>
+      {/* Toolbar */}
+      <Flex
+        justify="space-between"
+        align={{ base: 'stretch', md: 'center' }}
+        direction={{ base: 'column', md: 'row' }}
+        gap={3}
+        mb={5}
+      >
+        <HStack spacing={3}>
+          <HStack
+            spacing={0}
+            bg="paper-2"
+            border="1px solid"
+            borderColor="gray.200"
+            borderRadius="lg"
+            overflow="hidden"
+          >
+            <IconButton
+              aria-label="前の週"
+              icon={<ChevronLeftIcon boxSize={5} />}
+              variant="ghost"
+              borderRadius={0}
+              onClick={prevWeek}
+            />
+            <Box w="1px" h={6} bg="gray.200" />
+            <IconButton
+              aria-label="次の週"
+              icon={<ChevronRightIcon boxSize={5} />}
+              variant="ghost"
+              borderRadius={0}
+              onClick={nextWeek}
+            />
+          </HStack>
+          <Button variant="secondary" onClick={goToday} size="sm" h={11}>
+            今週
+          </Button>
+          <Box>
+            <Heading size="md" letterSpacing="tight">
+              {rangeLabel}
+            </Heading>
+            <Text fontSize="xs" color="gray.500" fontFamily="mono">
+              {weekStart.getFullYear()}
+            </Text>
+          </Box>
         </HStack>
-        <HStack>
-          <Button leftIcon={<AddIcon />} onClick={onOpen}>Add Event</Button>
-        </HStack>
-      </HStack>
+
+        <Button variant="signal" leftIcon={<AddIcon boxSize={3} />} onClick={onOpen}>
+          予定を追加
+        </Button>
+      </Flex>
 
       {loading ? (
-        <Spinner />
+        <Center py={20}>
+          <Spinner color="primary.500" thickness="3px" />
+        </Center>
       ) : (
-        <Grid templateColumns="repeat(7, 1fr)" gap={4}>
-          {days().map((d) => (
-            <Box key={d.toISOString()} borderWidth="1px" borderRadius="md" p={3} minH="120px">
-              <Heading size="sm">{d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</Heading>
-              <VStack align="stretch" mt={2} spacing={2}>
-                {eventsForDay(d).map((ev) => (
-                  <Box key={ev.id} p={2} bg="gray.50" borderRadius="md">
-                    <HStack justify="space-between">
-                      <VStack align="start" spacing={0}>
-                        <Text fontWeight="bold">{ev.name}</Text>
-                        <Text fontSize="sm">{new Date(ev.startAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(ev.endAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
-                        {ev.eventLocation && <Text fontSize="sm">{ev.eventLocation}</Text>}
-                      </VStack>
-                      {user && ev.createdBy === user.id && (
-                        <IconButton aria-label="delete" size="sm" icon={<DeleteIcon />} onClick={() => handleDelete(ev.id)} />
-                      )}
-                    </HStack>
-                  </Box>
-                ))}
-              </VStack>
-            </Box>
-          ))}
+        <Grid templateColumns={{ base: '1fr', md: 'repeat(7, 1fr)' }} gap={3}>
+          {days().map((d) => {
+            const isToday = isSameDay(d, today)
+            const dow = d.getDay()
+            const dayEvents = eventsForDay(d)
+            return (
+              <Box
+                key={d.toISOString()}
+                bg="paper-2"
+                borderWidth="1px"
+                borderColor={isToday ? 'signal.300' : 'gray.200'}
+                borderRadius="xl"
+                p={3}
+                minH={{ base: 'auto', md: '160px' }}
+                boxShadow={isToday ? 'sm' : 'none'}
+                transition="border-color 0.15s"
+                _hover={{ borderColor: isToday ? 'signal.400' : 'gray.300' }}
+              >
+                <Flex align="center" justify="space-between" mb={2}>
+                  <HStack spacing={1.5}>
+                    <Text
+                      fontSize="xs"
+                      fontWeight="bold"
+                      color={
+                        dow === 0 ? 'danger.500' : dow === 6 ? 'primary.600' : 'gray.400'
+                      }
+                    >
+                      {WEEKDAYS[dow]}
+                    </Text>
+                    <Text
+                      fontFamily="heading"
+                      fontWeight="700"
+                      fontSize="lg"
+                      color={isToday ? 'signal.600' : 'gray.900'}
+                      lineHeight="1"
+                    >
+                      {d.getDate()}
+                    </Text>
+                  </HStack>
+                  {isToday && <Box className="presence-dot" />}
+                </Flex>
+
+                <VStack align="stretch" spacing={1.5}>
+                  {dayEvents.map((ev) => {
+                    const sharing = SHARING[ev.sharingState as keyof typeof SHARING] ?? SHARING.private
+                    const mine = user && ev.createdBy === user.id
+                    return (
+                      <Box
+                        key={ev.id}
+                        role="group"
+                        p={2}
+                        bg="paper"
+                        borderRadius="md"
+                        borderLeft="3px solid"
+                        borderLeftColor={`${sharing.colorScheme}.400`}
+                      >
+                        <Flex justify="space-between" align="start" gap={1}>
+                          <Text fontWeight="600" fontSize="sm" noOfLines={2} color="gray.900">
+                            {ev.name}
+                          </Text>
+                          {mine && (
+                            <IconButton
+                              aria-label="削除"
+                              size="xs"
+                              variant="ghost"
+                              color="gray.400"
+                              icon={<DeleteIcon />}
+                              opacity={0}
+                              _groupHover={{ opacity: 1 }}
+                              _hover={{ color: 'danger.500', bg: 'danger.50' }}
+                              onClick={() => handleDelete(ev.id)}
+                            />
+                          )}
+                        </Flex>
+                        <Text fontSize="xs" fontFamily="mono" color="gray.500" mt={0.5}>
+                          {formatTime(ev.startAt)}–{formatTime(ev.endAt)}
+                        </Text>
+                        {ev.eventLocation && (
+                          <Text fontSize="xs" color="gray.500" noOfLines={1} mt={0.5}>
+                            📍 {ev.eventLocation}
+                          </Text>
+                        )}
+                      </Box>
+                    )
+                  })}
+                </VStack>
+              </Box>
+            )
+          })}
         </Grid>
       )}
 
-      <Modal isOpen={isOpen} onClose={onClose}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Add Event</ModalHeader>
-          <ModalCloseButton />
+      <Modal isOpen={isOpen} onClose={onClose} isCentered>
+        <ModalOverlay bg="blackAlpha.500" backdropFilter="blur(2px)" />
+        <ModalContent mx={4}>
+          <ModalHeader fontFamily="heading">予定を追加</ModalHeader>
+          <ModalCloseButton borderRadius="full" />
           <ModalBody>
-            <FormControl mb={3}>
-              <FormLabel>Name</FormLabel>
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            </FormControl>
+            <VStack spacing={4} align="stretch">
+              <FormControl>
+                <FormLabel>タイトル</FormLabel>
+                <Input
+                  placeholder="例: チームランチ"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                />
+              </FormControl>
 
-            <FormControl mb={3}>
-              <FormLabel>Start</FormLabel>
-              <Input type="datetime-local" value={form.startAt} onChange={(e) => setForm({ ...form, startAt: e.target.value })} />
-            </FormControl>
+              <HStack spacing={3} align="start">
+                <FormControl>
+                  <FormLabel>開始</FormLabel>
+                  <Input
+                    type="datetime-local"
+                    value={form.startAt}
+                    onChange={(e) => setForm({ ...form, startAt: e.target.value })}
+                  />
+                </FormControl>
+                <FormControl>
+                  <FormLabel>終了</FormLabel>
+                  <Input
+                    type="datetime-local"
+                    value={form.endAt}
+                    onChange={(e) => setForm({ ...form, endAt: e.target.value })}
+                  />
+                </FormControl>
+              </HStack>
 
-            <FormControl mb={3}>
-              <FormLabel>End</FormLabel>
-              <Input type="datetime-local" value={form.endAt} onChange={(e) => setForm({ ...form, endAt: e.target.value })} />
-            </FormControl>
+              <FormControl>
+                <FormLabel>場所</FormLabel>
+                <Textarea
+                  rows={2}
+                  placeholder="集合場所やメモ"
+                  value={form.eventLocation}
+                  onChange={(e) => setForm({ ...form, eventLocation: e.target.value })}
+                />
+              </FormControl>
 
-            <FormControl mb={3}>
-              <FormLabel>Location</FormLabel>
-              <Textarea value={form.eventLocation} onChange={(e) => setForm({ ...form, eventLocation: e.target.value })} />
-            </FormControl>
-
-            <FormControl mb={3}>
-              <FormLabel>Sharing</FormLabel>
-              <Select value={form.sharingState} onChange={(e) => setForm({ ...form, sharingState: e.target.value })}>
-                <option value="private">Private</option>
-                <option value="friends">Friends</option>
-                <option value="team">Team</option>
-              </Select>
-            </FormControl>
+              <FormControl>
+                <FormLabel>
+                  公開範囲{' '}
+                  <Badge
+                    ml={1}
+                    colorScheme={SHARING[form.sharingState as keyof typeof SHARING].colorScheme}
+                    variant="subtle"
+                  >
+                    {SHARING[form.sharingState as keyof typeof SHARING].label}
+                  </Badge>
+                </FormLabel>
+                <Select
+                  value={form.sharingState}
+                  onChange={(e) => setForm({ ...form, sharingState: e.target.value })}
+                >
+                  <option value="private">自分のみ</option>
+                  <option value="friends">友だち</option>
+                  <option value="team">チーム</option>
+                </Select>
+              </FormControl>
+            </VStack>
           </ModalBody>
 
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={onClose}>Cancel</Button>
-            <Button onClick={handleCreate}>Create</Button>
+          <ModalFooter gap={2}>
+            <Button variant="ghost" onClick={onClose}>
+              キャンセル
+            </Button>
+            <Button variant="signal" onClick={handleCreate} isDisabled={!form.name || !form.startAt}>
+              作成する
+            </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
