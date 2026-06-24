@@ -14,7 +14,7 @@ import {
   Spinner,
   Center,
 } from '@chakra-ui/react'
-import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, AddIcon } from '@chakra-ui/icons'
+import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from '@chakra-ui/icons'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { Button } from '../ui/Button'
@@ -301,9 +301,6 @@ export default function CalendarTab() {
                 ))}
               </MenuList>
             </Menu>
-            <Button variant="signal" leftIcon={<AddIcon boxSize={3} />} onClick={openBlank}>
-              予定を追加
-            </Button>
           </HStack>
         </Flex>
 

@@ -56,8 +56,18 @@ export function TimeGridView({
     <Box bg="paper-2" border="1px solid" borderColor="gray.200" borderRadius="xl" overflow="hidden">
       <Box overflowX="auto">
         <Box minW={days.length === 1 ? 'auto' : '760px'}>
-          {/* Day headers */}
-          <Flex borderBottom="1px solid" borderColor="gray.200">
+          {/* Single scroll container so the header and the time grid share the
+              same width and the same scrollbar — keeps columns aligned. */}
+          <Flex
+            ref={scrollRef}
+            direction="column"
+            overflowY="auto"
+            maxH={{ base: '60vh', md: 'calc(100vh - 320px)' }}
+          >
+            {/* Sticky header: day labels + all-day row stay visible while scrolling */}
+            <Box position="sticky" top={0} zIndex={4} bg="paper-2">
+              {/* Day headers */}
+              <Flex borderBottom="1px solid" borderColor="gray.200">
             <Box w={`${GUTTER}px`} flexShrink={0} />
             {days.map((d) => {
               const today = isSameDay(d, now)
@@ -161,14 +171,10 @@ export function TimeGridView({
               })}
             </Flex>
           )}
+            </Box>
 
-          {/* Scrollable time grid */}
-          <Flex
-            ref={scrollRef}
-            overflowY="auto"
-            maxH={{ base: '60vh', md: 'calc(100vh - 320px)' }}
-            position="relative"
-          >
+            {/* Time grid — scrolls under the sticky header above */}
+            <Flex position="relative">
             <Box w={`${GUTTER}px`} flexShrink={0} position="relative" h={`${TOTAL_HEIGHT}px`}>
               {Array.from({ length: 23 }).map((_, i) => {
                 const hour = i + 1
@@ -331,6 +337,7 @@ export function TimeGridView({
                   </Box>
                 )
               })}
+            </Flex>
             </Flex>
           </Flex>
         </Box>
