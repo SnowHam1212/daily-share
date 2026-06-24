@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
-import { Box, Flex, HStack, Text, Select, VStack, Alert, AlertIcon, Badge } from '@chakra-ui/react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet'
+import { Box, Button, Flex, HStack, Text, Select, VStack, Alert, AlertIcon, Badge } from '@chakra-ui/react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { useRealtimeLocations } from '../../hooks/useRealtime'
@@ -11,10 +11,32 @@ type LocationRow = Database['public']['Tables']['locations']['Row']
 
 type LatLng = { lat: number; lng: number }
 
+const TILE_LAYERS = {
+  map: {
+    label: '地図',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  },
+  satellite: {
+    label: '航空写真',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+  },
+  transit: {
+    label: '公共交通',
+    url: 'https://tile.memomaps.de/tilegen/{z}/{x}/{y}.png',
+    attribution: 'Map <a href="https://memomaps.de/">memomaps.de</a> <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  },
+} as const
+
+type TileLayerKey = keyof typeof TILE_LAYERS
+
+const DEFAULT_ZOOM = 13
+
 function RecenterMap({ position }: { position: LatLng | null }) {
   const map = useMap()
+  const centered = useRef(false)
 
-  // 【追加】タブが開かれた直後に、地図のサイズを強制的に再計算させる（グレー画面対策）
   useEffect(() => {
     const timer = setTimeout(() => {
       map.invalidateSize()
@@ -22,29 +44,54 @@ function RecenterMap({ position }: { position: LatLng | null }) {
     return () => clearTimeout(timer)
   }, [map])
 
-  // 位置情報が取得・更新されたら、その場所へカメラを移動させる
   useEffect(() => {
-    if (position) {
+    if (position && !centered.current) {
       map.setView([position.lat, position.lng], map.getZoom())
+      centered.current = true
     }
   }, [map, position])
 
   return null
 }
 
+function TripleClickRecenter({ position }: { position: LatLng | null }) {
+  const map = useMap()
+  const clickCount = useRef(0)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useMapEvents({
+    click() {
+      clickCount.current += 1
+      if (timer.current) clearTimeout(timer.current)
+      timer.current = setTimeout(() => { clickCount.current = 0 }, 500)
+      if (clickCount.current >= 2 && position) {
+        map.setView([position.lat, position.lng], DEFAULT_ZOOM)
+        clickCount.current = 0
+      }
+    },
+  })
+
+  return null
+}
+
 export default function MapTab() {
   const { user } = useAuth()
-  const locations = useRealtimeLocations()
+  const { locations, fetchLocations } = useRealtimeLocations()
   const [sharingState, setSharingState] = useState<LocationRow['sharingState']>('private')
   const [currentPosition, setCurrentPosition] = useState<LatLng | null>(null)
   const [permissionError, setPermissionError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
+  const [tileLayer, setTileLayer] = useState<TileLayerKey>('map')
 
   const markers = useMemo(
     () => locations.filter((loc) => loc.lat !== null && loc.lng !== null),
     [locations],
   )
+
+  useEffect(() => {
+    void fetchLocations()
+  }, [fetchLocations])
 
   useEffect(() => {
     if (!user) return
@@ -106,20 +153,11 @@ export default function MapTab() {
     [user],
   )
 
-  useEffect(() => {
+  const handleRefresh = useCallback(async () => {
     if (!user || !currentPosition) return
-    void upsertLocation(currentPosition, sharingState)
-  }, [currentPosition, sharingState, upsertLocation, user])
-
-  useEffect(() => {
-    if (!user || !currentPosition) return
-
-    const intervalId = window.setInterval(() => {
-      void upsertLocation(currentPosition, sharingState)
-    }, 10000)
-
-    return () => window.clearInterval(intervalId)
-  }, [currentPosition, sharingState, upsertLocation, user])
+    await upsertLocation(currentPosition, sharingState)
+    await fetchLocations()
+  }, [user, currentPosition, sharingState, upsertLocation, fetchLocations])
 
   const currentPositionLabel = currentPosition
     ? `${currentPosition.lat.toFixed(5)}, ${currentPosition.lng.toFixed(5)}`
@@ -139,6 +177,15 @@ export default function MapTab() {
             </Badge>
             <Text>{currentPositionLabel}</Text>
             <Text>{saving ? '保存中...' : lastSavedAt ? `最終更新: ${lastSavedAt}` : ''}</Text>
+            <Button
+              size="sm"
+              colorScheme="blue"
+              isLoading={saving}
+              isDisabled={!currentPosition}
+              onClick={() => void handleRefresh()}
+            >
+              マップを更新
+            </Button>
           </HStack>
         </VStack>
 
@@ -160,17 +207,42 @@ export default function MapTab() {
         </Alert>
       )}
 
-      <Box h="calc(100vh - 280px)">
+      <Box h="calc(100vh - 280px)" position="relative">
+        <HStack
+          position="absolute"
+          top={2}
+          right={2}
+          zIndex={1000}
+          bg="white"
+          borderRadius="md"
+          boxShadow="md"
+          p={1}
+          spacing={1}
+        >
+          {(Object.keys(TILE_LAYERS) as TileLayerKey[]).map((key) => (
+            <Button
+              key={key}
+              size="xs"
+              colorScheme={tileLayer === key ? 'blue' : 'gray'}
+              variant={tileLayer === key ? 'solid' : 'ghost'}
+              onClick={() => setTileLayer(key)}
+            >
+              {TILE_LAYERS[key].label}
+            </Button>
+          ))}
+        </HStack>
         <MapContainer
           center={currentPosition ? [currentPosition.lat, currentPosition.lng] : [35.6762, 139.6503]}
-          zoom={13}
+          zoom={DEFAULT_ZOOM}
+          doubleClickZoom={false}
           style={{ height: '100%', width: '100%' }}
         >
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution={TILE_LAYERS[tileLayer].attribution}
+            url={TILE_LAYERS[tileLayer].url}
           />
           {currentPosition && <RecenterMap position={currentPosition} />}
+          <TripleClickRecenter position={currentPosition} />
           {markers.map((loc) => (
             <Marker
               key={loc.userId}

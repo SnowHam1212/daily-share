@@ -18,7 +18,7 @@ interface MapProps {
 }
 
 export function Map({ onSignOut }: MapProps) {
-  const locations = useRealtimeLocations()
+  const { locations } = useRealtimeLocations()
 
   return (
     <Box position="relative" w="100%" h="100vh">
