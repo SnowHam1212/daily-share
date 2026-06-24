@@ -31,6 +31,8 @@ const TILE_LAYERS = {
 
 type TileLayerKey = keyof typeof TILE_LAYERS
 
+const DEFAULT_ZOOM = 13
+
 function RecenterMap({ position }: { position: LatLng | null }) {
   const map = useMap()
   const centered = useRef(false)
@@ -63,7 +65,7 @@ function TripleClickRecenter({ position }: { position: LatLng | null }) {
       if (timer.current) clearTimeout(timer.current)
       timer.current = setTimeout(() => { clickCount.current = 0 }, 500)
       if (clickCount.current >= 2 && position) {
-        map.setView([position.lat, position.lng], map.getZoom())
+        map.setView([position.lat, position.lng], DEFAULT_ZOOM)
         clickCount.current = 0
       }
     },
@@ -231,7 +233,7 @@ export default function MapTab() {
         </HStack>
         <MapContainer
           center={currentPosition ? [currentPosition.lat, currentPosition.lng] : [35.6762, 139.6503]}
-          zoom={13}
+          zoom={DEFAULT_ZOOM}
           doubleClickZoom={false}
           style={{ height: '100%', width: '100%' }}
         >
