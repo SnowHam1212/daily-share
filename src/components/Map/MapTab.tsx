@@ -11,6 +11,21 @@ type LocationRow = Database['public']['Tables']['locations']['Row']
 
 type LatLng = { lat: number; lng: number }
 
+const TILE_LAYERS = {
+  map: {
+    label: '地図',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  },
+  satellite: {
+    label: '航空写真',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+  },
+} as const
+
+type TileLayerKey = keyof typeof TILE_LAYERS
+
 function RecenterMap({ position }: { position: LatLng | null }) {
   const map = useMap()
 
@@ -38,6 +53,7 @@ export default function MapTab() {
   const [permissionError, setPermissionError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
+  const [tileLayer, setTileLayer] = useState<TileLayerKey>('map')
 
   const markers = useMemo(
     () => locations.filter((loc) => loc.lat !== null && loc.lng !== null),
@@ -162,15 +178,38 @@ export default function MapTab() {
         </Alert>
       )}
 
-      <Box h="calc(100vh - 280px)">
+      <Box h="calc(100vh - 280px)" position="relative">
+        <HStack
+          position="absolute"
+          top={2}
+          right={2}
+          zIndex={1000}
+          bg="white"
+          borderRadius="md"
+          boxShadow="md"
+          p={1}
+          spacing={1}
+        >
+          {(Object.keys(TILE_LAYERS) as TileLayerKey[]).map((key) => (
+            <Button
+              key={key}
+              size="xs"
+              colorScheme={tileLayer === key ? 'blue' : 'gray'}
+              variant={tileLayer === key ? 'solid' : 'ghost'}
+              onClick={() => setTileLayer(key)}
+            >
+              {TILE_LAYERS[key].label}
+            </Button>
+          ))}
+        </HStack>
         <MapContainer
           center={currentPosition ? [currentPosition.lat, currentPosition.lng] : [35.6762, 139.6503]}
           zoom={13}
           style={{ height: '100%', width: '100%' }}
         >
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution={TILE_LAYERS[tileLayer].attribution}
+            url={TILE_LAYERS[tileLayer].url}
           />
           {currentPosition && <RecenterMap position={currentPosition} />}
           {markers.map((loc) => (
