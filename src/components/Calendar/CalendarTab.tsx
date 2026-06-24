@@ -24,6 +24,7 @@ import {
   Center,
   Switch,
   Input as ChakraInput,
+  useToast,
 } from '@chakra-ui/react'
 import { ChevronLeftIcon, ChevronRightIcon, AddIcon, DeleteIcon } from '@chakra-ui/icons'
 import { supabase } from '../../lib/supabase'
@@ -192,6 +193,7 @@ export default function CalendarTab() {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const { isOpen, onOpen, onClose } = useDisclosure()
+  const toast = useToast()
   const [form, setForm] = useState({
     name: '',
     isAllDay: false,
@@ -308,8 +310,18 @@ export default function CalendarTab() {
   })}`
 
   async function handleCreate() {
-    if (!user) return
-    if (!teams || teams.length === 0) return
+    if (!user) {
+      toast({ status: 'error', title: 'ログインが必要です' })
+      return
+    }
+    if (!teams || teams.length === 0) {
+      toast({
+        status: 'warning',
+        title: 'チームに参加していません',
+        description: '予定を追加するにはチームへの参加が必要です。',
+      })
+      return
+    }
     const teamId = teams[0].id
 
     let start: Date
@@ -326,36 +338,45 @@ export default function CalendarTab() {
       end = isNaN(endRaw.getTime()) ? new Date(start.getTime() + 60 * 60 * 1000) : endRaw
     }
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      console.error('invalid datetime')
+      toast({ status: 'error', title: '日時が正しくありません' })
       return
     }
 
-    try {
-      await supabase.from('events').insert({
-        createdBy: user.id,
-        teamId,
-        name: form.name,
-        startAt: start.toISOString(),
-        endAt: end.toISOString(),
-        isAllDay: form.isAllDay,
-        eventLocation: form.eventLocation || null,
-        sharingState: form.sharingState as EventRow['sharingState'],
+    const { error } = await supabase.from('events').insert({
+      createdBy: user.id,
+      teamId,
+      name: form.name,
+      startAt: start.toISOString(),
+      endAt: end.toISOString(),
+      isAllDay: form.isAllDay,
+      eventLocation: form.eventLocation || null,
+      sharingState: form.sharingState as EventRow['sharingState'],
+    })
+
+    if (error) {
+      console.error('create event error', error)
+      toast({
+        status: 'error',
+        title: '予定を追加できませんでした',
+        description: error.message,
+        duration: 8000,
+        isClosable: true,
       })
-      setForm({
-        name: '',
-        isAllDay: false,
-        startDate: '',
-        startTime: '',
-        endDate: '',
-        endTime: '',
-        eventLocation: '',
-        sharingState: 'private',
-      })
-      onClose()
-      fetchEvents()
-    } catch (err) {
-      console.error('create event error', err)
+      return
     }
+
+    setForm({
+      name: '',
+      isAllDay: false,
+      startDate: '',
+      startTime: '',
+      endDate: '',
+      endTime: '',
+      eventLocation: '',
+      sharingState: 'private',
+    })
+    onClose()
+    fetchEvents()
   }
 
   async function handleDelete(id: string) {
