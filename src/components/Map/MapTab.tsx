@@ -75,7 +75,7 @@ function TripleClickRecenter({ position }: { position: LatLng | null }) {
 }
 
 export default function MapTab() {
-  const { user } = useAuth()
+  const { user, teams } = useAuth()
   const { locations, fetchLocations } = useRealtimeLocations()
   const [sharingState, setSharingState] = useState<LocationRow['sharingState']>('private')
   const [currentPosition, setCurrentPosition] = useState<LatLng | null>(null)
@@ -83,15 +83,51 @@ export default function MapTab() {
   const [saving, setSaving] = useState(false)
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
   const [tileLayer, setTileLayer] = useState<TileLayerKey>('map')
+  // displayName for every teammate (across all of the user's teams)
+  const [memberNames, setMemberNames] = useState<Map<string, string>>(new Map())
 
+  const teamIds = useMemo(() => teams.map((t) => t.id), [teams])
+
+  const fetchTeamMembers = useCallback(async () => {
+    if (teamIds.length === 0) {
+      setMemberNames(new Map())
+      return
+    }
+    const { data: rows } = await supabase
+      .from('user_teams')
+      .select('userId')
+      .in('teamId', teamIds)
+    const ids = Array.from(new Set((rows ?? []).map((r) => r.userId)))
+    if (ids.length === 0) {
+      setMemberNames(new Map())
+      return
+    }
+    const { data: users } = await supabase
+      .from('users')
+      .select('id, displayName')
+      .in('id', ids)
+    setMemberNames(new Map((users ?? []).map((u) => [u.id, u.displayName])))
+  }, [teamIds])
+
+  // Only show teammates' pins (and always your own).
   const markers = useMemo(
-    () => locations.filter((loc) => loc.lat !== null && loc.lng !== null),
-    [locations],
+    () =>
+      locations.filter(
+        (loc) =>
+          loc.lat !== null &&
+          loc.lng !== null &&
+          (loc.userId === user?.id || memberNames.has(loc.userId)),
+      ),
+    [locations, memberNames, user?.id],
   )
 
   useEffect(() => {
     void fetchLocations()
   }, [fetchLocations])
+
+  useEffect(() => {
+    void fetchTeamMembers()
+  }, [fetchTeamMembers])
 
   useEffect(() => {
     if (!user) return
@@ -156,8 +192,8 @@ export default function MapTab() {
   const handleRefresh = useCallback(async () => {
     if (!user || !currentPosition) return
     await upsertLocation(currentPosition, sharingState)
-    await fetchLocations()
-  }, [user, currentPosition, sharingState, upsertLocation, fetchLocations])
+    await Promise.all([fetchLocations(), fetchTeamMembers()])
+  }, [user, currentPosition, sharingState, upsertLocation, fetchLocations, fetchTeamMembers])
 
   const currentPositionLabel = currentPosition
     ? `${currentPosition.lat.toFixed(5)}, ${currentPosition.lng.toFixed(5)}`
@@ -170,7 +206,7 @@ export default function MapTab() {
           <Text fontSize="2xl" fontWeight="semibold">
             マップ
           </Text>
-          <Text color="gray.600">位置共有ステータスを選択すると、現在地が Supabase の locations テーブルへ送信されます。</Text>
+          <Text color="gray.600">共有範囲を選んで「マップを更新」すると、現在地が送信され、チームメンバーの位置が表示されます。</Text>
           <HStack spacing={3} flexWrap="wrap">
             <Badge colorScheme={sharingState === 'private' ? 'gray' : sharingState === 'friends' ? 'blue' : 'purple'}>
               {sharingState}
@@ -249,7 +285,11 @@ export default function MapTab() {
               position={[loc.lat ?? 0, loc.lng ?? 0]}
               icon={MapPin(loc.userId === user?.id ? '#2B6CB0' : undefined)}
             >
-              <Popup>{loc.userId === user?.id ? 'あなた' : loc.userId}</Popup>
+              <Popup>
+                {loc.userId === user?.id
+                  ? 'あなた'
+                  : memberNames.get(loc.userId) ?? 'チームメンバー'}
+              </Popup>
             </Marker>
           ))}
         </MapContainer>
