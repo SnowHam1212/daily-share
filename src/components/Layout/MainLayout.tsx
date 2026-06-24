@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import CalendarTab from '../Calendar/CalendarTab'
 import MapTab from '../Map/MapTab'
+
 import {
   Box,
   Flex,
@@ -29,6 +30,7 @@ export function MainLayout() {
         onChange={(index) => setTabIndex(index)}
         variant="soft-rounded"
         colorScheme="blue"
+        isLazy
       >
         <Box
           as="header"
