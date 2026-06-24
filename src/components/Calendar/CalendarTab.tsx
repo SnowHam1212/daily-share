@@ -14,7 +14,7 @@ import {
   Spinner,
   Center,
 } from '@chakra-ui/react'
-import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from '@chakra-ui/icons'
+import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, RepeatIcon } from '@chakra-ui/icons'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { Button } from '../ui/Button'
@@ -45,6 +45,7 @@ export default function CalendarTab() {
   const [anchor, setAnchor] = useState(() => startOfDay(new Date()))
   const [events, setEvents] = useState<EventRow[]>([])
   const [loading, setLoading] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const [now, setNow] = useState(() => new Date())
   const [filters, setFilters] = useState<Set<SharingState>>(
     () => new Set<SharingState>(['private', 'friends', 'team']),
@@ -74,9 +75,11 @@ export default function CalendarTab() {
     return () => clearInterval(id)
   }, [])
 
-  async function fetchEvents() {
+  // `silent` re-fetches without the full-grid spinner (used by the 更新 button).
+  async function fetchEvents(opts?: { silent?: boolean }) {
     if (!teamIds || teamIds.length === 0) return setEvents([])
-    setLoading(true)
+    if (opts?.silent) setRefreshing(true)
+    else setLoading(true)
     try {
       const { data, error } = await supabase
         .from('events')
@@ -87,13 +90,19 @@ export default function CalendarTab() {
         .order('startAt', { ascending: true })
       if (error) {
         console.error('fetch events error', error)
+        if (opts?.silent) toast({ status: 'error', title: '更新できませんでした', description: error.message })
         setEvents([])
       } else {
         setEvents((data as EventRow[]) || [])
       }
     } finally {
-      setLoading(false)
+      if (opts?.silent) setRefreshing(false)
+      else setLoading(false)
     }
+  }
+
+  function handleRefresh() {
+    void fetchEvents({ silent: true })
   }
 
   const visibleEvents = useMemo(
@@ -290,6 +299,15 @@ export default function CalendarTab() {
           </HStack>
 
           <HStack spacing={2}>
+            <Button
+              variant="secondary"
+              leftIcon={<RepeatIcon />}
+              onClick={handleRefresh}
+              isLoading={refreshing}
+              loadingText="更新中"
+            >
+              更新
+            </Button>
             <Menu>
               <MenuButton as={Button} variant="secondary" rightIcon={<ChevronDownIcon />}>
                 {VIEW_LABEL[view]}
