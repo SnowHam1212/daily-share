@@ -7,6 +7,17 @@ import {
   VStack,
   IconButton,
   useDisclosure,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  ModalCloseButton,
+  FormControl,
+  FormLabel,
+  Select,
+  Textarea,
   Spinner,
   Flex,
   Badge,
@@ -18,7 +29,7 @@ import { ChevronLeftIcon, ChevronRightIcon, AddIcon, DeleteIcon } from '@chakra-
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { Button } from '../ui/Button'
-import { EventModal } from './EventModal'
+import { Input } from '../ui/Input'
 import type { Database } from '../../types/database'
 
 type EventRow = Database['public']['Tables']['events']['Row']
