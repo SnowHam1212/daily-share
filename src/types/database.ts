@@ -84,6 +84,30 @@ export type Database = {
         }
         Relationships: []
       }
+      friend_requests: {
+        Row: {
+          id: string
+          requesterId: string
+          addresseeId: string
+          status: string
+          createdAt: string | null
+        }
+        Insert: {
+          id?: string
+          requesterId: string
+          addresseeId: string
+          status?: string
+          createdAt?: string | null
+        }
+        Update: {
+          id?: string
+          requesterId?: string
+          addresseeId?: string
+          status?: string
+          createdAt?: string | null
+        }
+        Relationships: []
+      }
       user_friends: {
         Row: {
           id: string
@@ -194,7 +218,16 @@ export type Database = {
       }
     }
     Views: { [_ in never]: never }
-    Functions: { [_ in never]: never }
+    Functions: {
+      accept_friend_request: {
+        Args: { request_id: string }
+        Returns: undefined
+      }
+      remove_friend: {
+        Args: { other_id: string }
+        Returns: undefined
+      }
+    }
     Enums: {
       sharing_state: 'private' | 'friends' | 'team'
     }
