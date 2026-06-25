@@ -13,11 +13,13 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
-  const { signInWithEmail, signInWithGoogle } = useAuth()
+  const { signInWithEmail, signInWithGoogle, sendPasswordReset } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [resetSent, setResetSent] = useState(false)
+  const [resetting, setResetting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,6 +28,22 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
     const result = await signInWithEmail(email, password)
     setIsLoading(false)
     if (result.error) setError(result.error.message)
+  }
+
+  const handleReset = async () => {
+    setError(null)
+    if (!email.trim()) {
+      setError('パスワード再設定メールを送るには、メールアドレスを入力してください。')
+      return
+    }
+    setResetting(true)
+    const { error } = await sendPasswordReset(email.trim())
+    setResetting(false)
+    if (error) {
+      setError(error.message)
+      return
+    }
+    setResetSent(true)
   }
 
   return (
@@ -80,6 +98,23 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
               <Button type="submit" isLoading={isLoading} w="full" mt={1}>
                 ログイン
               </Button>
+              {resetSent ? (
+                <Text fontSize="xs" color="success.600" textAlign="center">
+                  パスワード再設定メールを送信しました。メールのリンクから設定してください。
+                </Text>
+              ) : (
+                <Text
+                  fontSize="xs"
+                  color="primary.600"
+                  textAlign="center"
+                  cursor="pointer"
+                  fontWeight="medium"
+                  opacity={resetting ? 0.6 : 1}
+                  onClick={() => !resetting && handleReset()}
+                >
+                  {resetting ? '送信中...' : 'パスワードをお忘れですか？'}
+                </Text>
+              )}
             </VStack>
 
             <HStack>

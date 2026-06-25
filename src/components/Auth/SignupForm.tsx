@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import {
-  Box, VStack, Divider, Text, HStack, Flex
+  Box, VStack, Divider, Text, HStack, Flex, Checkbox
 } from '@chakra-ui/react'
 import { useAuth } from '../../hooks/useAuth'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Card } from '../ui/Card'
+import { LegalModal, type LegalDoc } from '../Legal/LegalModal'
 
 interface SignupFormProps {
   onSwitchToLogin: () => void
@@ -17,10 +18,16 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [agreed, setAgreed] = useState(false)
+  const [legalDoc, setLegalDoc] = useState<LegalDoc | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    if (!agreed) {
+      setError('利用規約とプライバシーポリシーへの同意が必要です。')
+      return
+    }
     setIsLoading(true)
     const result = await signUpWithEmail(email, password)
     setIsLoading(false)
@@ -70,7 +77,24 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-            <Button type="submit" isLoading={isLoading} w="full">
+            <Checkbox
+              isChecked={agreed}
+              onChange={(e) => setAgreed(e.target.checked)}
+              colorScheme="primary"
+              alignItems="flex-start"
+            >
+              <Text fontSize="xs" color="gray.600">
+                <Box as="span" color="primary.600" cursor="pointer" textDecoration="underline" onClick={(e: React.MouseEvent) => { e.preventDefault(); setLegalDoc('terms') }}>
+                  利用規約
+                </Box>
+                {' '}と{' '}
+                <Box as="span" color="primary.600" cursor="pointer" textDecoration="underline" onClick={(e: React.MouseEvent) => { e.preventDefault(); setLegalDoc('privacy') }}>
+                  プライバシーポリシー
+                </Box>
+                {' '}に同意します
+              </Text>
+            </Checkbox>
+            <Button type="submit" isLoading={isLoading} w="full" isDisabled={!agreed}>
               アカウント作成
             </Button>
           </VStack>
@@ -100,6 +124,7 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
           </Text>
         </VStack>
       </Card>
+      <LegalModal doc={legalDoc} onClose={() => setLegalDoc(null)} />
     </Flex>
   )
 }
