@@ -16,10 +16,15 @@ import {
 import { ArrowUpIcon } from '@chakra-ui/icons'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import type { Database } from '../../types/database'
 
 type MessageRow = Database['public']['Tables']['team_messages']['Row']
+
+// How many messages to load at a time (newest first). Older ones are revealed
+// on demand so we never pull a team's entire history into the client.
+const PAGE = 50
 
 function formatStamp(iso: string | null) {
   if (!iso) return ''
@@ -40,6 +45,8 @@ export default function ChatTab() {
   const [loading, setLoading] = useState(false)
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
+  const [limit, setLimit] = useState(PAGE)
+  const [hasMore, setHasMore] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   // Keep a valid selected team as membership changes.
@@ -65,28 +72,32 @@ export default function ChatTab() {
     setMemberNames(new Map((users ?? []).map((u) => [u.id, u.displayName])))
   }, [])
 
-  const fetchMessages = useCallback(async (tid: string) => {
+  // Fetch the newest `lim` messages (descending), then flip to chronological.
+  const fetchMessages = useCallback(async (tid: string, lim: number) => {
     setLoading(true)
     try {
       const { data } = await supabase
         .from('team_messages')
         .select('*')
         .eq('teamId', tid)
-        .order('createdAt', { ascending: true })
-      setMessages(data ?? [])
+        .order('createdAt', { ascending: false })
+        .limit(lim)
+      const rows = (data ?? []).slice().reverse()
+      setMessages(rows)
+      setHasMore((data?.length ?? 0) >= lim)
     } finally {
       setLoading(false)
     }
   }, [])
 
-  // Load messages + members, and subscribe to live inserts for this team.
+  // Reset the window and load members + subscribe whenever the team changes.
   useEffect(() => {
     if (!teamId) {
       setMessages([])
       return
     }
+    setLimit(PAGE)
     void fetchMembers(teamId)
-    void fetchMessages(teamId)
 
     const channel = supabase
       .channel(`team_messages:${teamId}`)
@@ -106,7 +117,12 @@ export default function ChatTab() {
     return () => {
       void supabase.removeChannel(channel)
     }
-  }, [teamId, fetchMembers, fetchMessages])
+  }, [teamId, fetchMembers])
+
+  // (Re)load the message window when the team or the limit changes.
+  useEffect(() => {
+    if (teamId) void fetchMessages(teamId, limit)
+  }, [teamId, limit, fetchMessages])
 
   // Auto-scroll to the newest message.
   useEffect(() => {
@@ -132,7 +148,7 @@ export default function ChatTab() {
       }
       setDraft('')
       // Realtime will append, but refetch as a fallback if it doesn't arrive.
-      void fetchMessages(teamId)
+      void fetchMessages(teamId, limit)
     } finally {
       setSending(false)
     }
@@ -189,6 +205,13 @@ export default function ChatTab() {
             </Center>
           ) : (
             <VStack align="stretch" spacing={3}>
+              {hasMore && (
+                <Center>
+                  <Button size="xs" variant="ghost" onClick={() => setLimit((l) => l + PAGE)}>
+                    以前のメッセージを読み込む
+                  </Button>
+                </Center>
+              )}
               {messages.map((m) => {
                 const mine = m.userId === user?.id
                 return (
