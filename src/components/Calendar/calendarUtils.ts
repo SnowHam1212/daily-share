@@ -130,6 +130,36 @@ export const EMPTY_FORM: EventForm = {
   sharingState: 'private',
 }
 
+// Convert a stored event into the editable form shape.
+export function eventToForm(ev: EventRow): EventForm {
+  const start = new Date(ev.startAt)
+  const end = new Date(ev.endAt)
+  if (ev.isAllDay) {
+    // Stored end is the midnight after the last day → step back one day to show
+    // the inclusive end date the user originally picked.
+    return {
+      name: ev.name,
+      isAllDay: true,
+      startDate: toDateInput(start),
+      startTime: '',
+      endDate: toDateInput(addDays(end, -1)),
+      endTime: '',
+      eventLocation: ev.eventLocation ?? '',
+      sharingState: ev.sharingState,
+    }
+  }
+  return {
+    name: ev.name,
+    isAllDay: false,
+    startDate: toDateInput(start),
+    startTime: minuteToTime(minutesOfDay(start)),
+    endDate: toDateInput(end),
+    endTime: minuteToTime(minutesOfDay(end)),
+    eventLocation: ev.eventLocation ?? '',
+    sharingState: ev.sharingState,
+  }
+}
+
 export type Positioned = {
   ev: EventRow
   start: number // minutes from midnight (clamped to this day)

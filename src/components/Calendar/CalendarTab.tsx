@@ -24,6 +24,7 @@ import { MonthView } from './MonthView'
 import { CalendarSidebar } from './CalendarSidebar'
 import {
   EMPTY_FORM,
+  eventToForm,
   startOfWeek,
   startOfDay,
   addDays,
@@ -53,6 +54,8 @@ export default function CalendarTab() {
   const { isOpen, onOpen, onClose } = useDisclosure()
   const toast = useToast()
   const [form, setForm] = useState<EventForm>(EMPTY_FORM)
+  // id of the event being edited, or null when creating a new one.
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   const teamIds = useMemo(() => teams.map((t) => t.id), [teams])
 
@@ -152,6 +155,7 @@ export default function CalendarTab() {
   }, [view, anchor])
 
   function openBlank() {
+    setEditingId(null)
     setForm(EMPTY_FORM)
     onOpen()
   }
@@ -159,6 +163,7 @@ export default function CalendarTab() {
   function openSlot(day: Date, minute: number) {
     const dateStr = toDateInput(day)
     const endMinute = minute + 60
+    setEditingId(null)
     setForm({
       ...EMPTY_FORM,
       startDate: dateStr,
@@ -171,7 +176,15 @@ export default function CalendarTab() {
 
   function openAllDay(day: Date) {
     const dateStr = toDateInput(day)
+    setEditingId(null)
     setForm({ ...EMPTY_FORM, isAllDay: true, startDate: dateStr, endDate: dateStr })
+    onOpen()
+  }
+
+  // Open the modal in edit mode for an existing event.
+  function openEdit(ev: EventRow) {
+    setEditingId(ev.id)
+    setForm(eventToForm(ev))
     onOpen()
   }
 
@@ -211,22 +224,24 @@ export default function CalendarTab() {
       return
     }
 
-    const { error } = await supabase.from('events').insert({
-      createdBy: user.id,
-      teamId,
+    const payload = {
       name: form.name,
       startAt: start.toISOString(),
       endAt: end.toISOString(),
       isAllDay: form.isAllDay,
       eventLocation: form.eventLocation || null,
       sharingState: form.sharingState as SharingState,
-    })
+    }
+
+    const { error } = editingId
+      ? await supabase.from('events').update(payload).eq('id', editingId)
+      : await supabase.from('events').insert({ createdBy: user.id, teamId, ...payload })
 
     if (error) {
-      console.error('create event error', error)
+      console.error('save event error', error)
       toast({
         status: 'error',
-        title: '予定を追加できませんでした',
+        title: editingId ? '予定を保存できませんでした' : '予定を追加できませんでした',
         description: error.message,
         duration: 8000,
         isClosable: true,
@@ -235,8 +250,17 @@ export default function CalendarTab() {
     }
 
     setForm(EMPTY_FORM)
+    setEditingId(null)
     onClose()
     fetchEvents()
+  }
+
+  // Delete the event currently open in the edit modal.
+  async function handleDeleteCurrent() {
+    if (!editingId) return
+    await handleDelete(editingId)
+    setEditingId(null)
+    onClose()
   }
 
   async function handleDelete(id: string) {
@@ -320,6 +344,7 @@ export default function CalendarTab() {
             events={visibleEvents}
             now={now}
             onDayClick={openDayView}
+            onEventClick={openEdit}
           />
         ) : (
           <TimeGridView
@@ -329,12 +354,21 @@ export default function CalendarTab() {
             currentUserId={user?.id}
             onSlotClick={openSlot}
             onAllDayClick={openAllDay}
+            onEventClick={openEdit}
             onDelete={handleDelete}
           />
         )}
       </Box>
 
-      <EventModal isOpen={isOpen} onClose={onClose} form={form} setForm={setForm} onSubmit={handleCreate} />
+      <EventModal
+        isOpen={isOpen}
+        onClose={onClose}
+        form={form}
+        setForm={setForm}
+        onSubmit={handleCreate}
+        mode={editingId ? 'edit' : 'create'}
+        onDelete={handleDeleteCurrent}
+      />
     </Flex>
   )
 }
