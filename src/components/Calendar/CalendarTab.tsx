@@ -24,6 +24,7 @@ import { MonthView } from './MonthView'
 import { CalendarSidebar } from './CalendarSidebar'
 import {
   EMPTY_FORM,
+  eventToForm,
   startOfWeek,
   startOfDay,
   addDays,
@@ -54,6 +55,13 @@ export default function CalendarTab() {
   const { isOpen, onOpen, onClose } = useDisclosure()
   const toast = useToast()
   const [form, setForm] = useState<EventForm>(EMPTY_FORM)
+  // id of the event being edited; null when creating a new one
+  const [editingId, setEditingId] = useState<string | null>(null)
+
+  function closeModal() {
+    setEditingId(null)
+    onClose()
+  }
 
   const teamIds = useMemo(() => teams.map((t) => t.id), [teams])
 
@@ -161,6 +169,7 @@ export default function CalendarTab() {
   }, [view, anchor])
 
   function openBlank() {
+    setEditingId(null)
     setForm(EMPTY_FORM)
     onOpen()
   }
@@ -168,6 +177,7 @@ export default function CalendarTab() {
   function openSlot(day: Date, minute: number) {
     const dateStr = toDateInput(day)
     const endMinute = minute + 60
+    setEditingId(null)
     setForm({
       ...EMPTY_FORM,
       startDate: dateStr,
@@ -180,7 +190,14 @@ export default function CalendarTab() {
 
   function openAllDay(day: Date) {
     const dateStr = toDateInput(day)
+    setEditingId(null)
     setForm({ ...EMPTY_FORM, isAllDay: true, startDate: dateStr, endDate: dateStr })
+    onOpen()
+  }
+
+  function openEdit(ev: EventRow) {
+    setEditingId(ev.id)
+    setForm(eventToForm(ev))
     onOpen()
   }
 
@@ -189,7 +206,7 @@ export default function CalendarTab() {
     setView('day')
   }
 
-  async function handleCreate() {
+  async function handleSubmit() {
     if (!user) {
       toast({ status: 'error', title: 'ログインが必要です' })
       return
@@ -202,7 +219,6 @@ export default function CalendarTab() {
       })
       return
     }
-    const teamId = teams[0].id
 
     let start: Date
     let end: Date
@@ -220,22 +236,24 @@ export default function CalendarTab() {
       return
     }
 
-    const { error } = await supabase.from('events').insert({
-      createdBy: user.id,
-      teamId,
+    const values = {
       name: form.name,
       startAt: start.toISOString(),
       endAt: end.toISOString(),
       isAllDay: form.isAllDay,
       eventLocation: form.eventLocation || null,
       sharingState: form.sharingState as SharingState,
-    })
+    }
+
+    const { error } = editingId
+      ? await supabase.from('events').update(values).eq('id', editingId)
+      : await supabase.from('events').insert({ ...values, createdBy: user.id, teamId: teams[0].id })
 
     if (error) {
-      console.error('create event error', error)
+      console.error('save event error', error)
       toast({
         status: 'error',
-        title: '予定を追加できませんでした',
+        title: editingId ? '予定を更新できませんでした' : '予定を追加できませんでした',
         description: error.message,
         duration: 8000,
         isClosable: true,
@@ -244,7 +262,7 @@ export default function CalendarTab() {
     }
 
     setForm(EMPTY_FORM)
-    onClose()
+    closeModal()
     fetchEvents()
   }
 
@@ -338,6 +356,7 @@ export default function CalendarTab() {
             events={visibleEvents}
             now={now}
             onDayClick={openDayView}
+            onEventClick={openEdit}
           />
         ) : (
           <TimeGridView
@@ -347,12 +366,20 @@ export default function CalendarTab() {
             currentUserId={user?.id}
             onSlotClick={openSlot}
             onAllDayClick={openAllDay}
+            onEventClick={openEdit}
             onDelete={handleDelete}
           />
         )}
       </Box>
 
-      <EventModal isOpen={isOpen} onClose={onClose} form={form} setForm={setForm} onSubmit={handleCreate} />
+      <EventModal
+        isOpen={isOpen}
+        onClose={closeModal}
+        form={form}
+        setForm={setForm}
+        onSubmit={handleSubmit}
+        isEditing={!!editingId}
+      />
     </Flex>
   )
 }

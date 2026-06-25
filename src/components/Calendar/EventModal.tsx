@@ -26,15 +26,16 @@ interface EventModalProps {
   form: EventForm
   setForm: (f: EventForm) => void
   onSubmit: () => void
+  isEditing?: boolean
 }
 
-export function EventModal({ isOpen, onClose, form, setForm, onSubmit }: EventModalProps) {
+export function EventModal({ isOpen, onClose, form, setForm, onSubmit, isEditing }: EventModalProps) {
   const sharing = SHARING[form.sharingState as SharingState] ?? SHARING.private
   return (
     <Modal isOpen={isOpen} onClose={onClose} isCentered>
       <ModalOverlay bg="blackAlpha.500" backdropFilter="blur(2px)" />
       <ModalContent mx={4}>
-        <ModalHeader fontFamily="heading">予定を追加</ModalHeader>
+        <ModalHeader fontFamily="heading">{isEditing ? '予定を編集' : '予定を追加'}</ModalHeader>
         <ModalCloseButton borderRadius="full" />
         <ModalBody>
           <VStack spacing={4} align="stretch">
@@ -150,7 +151,7 @@ export function EventModal({ isOpen, onClose, form, setForm, onSubmit }: EventMo
             onClick={onSubmit}
             isDisabled={!form.name || !form.startDate || (!form.isAllDay && !form.startTime)}
           >
-            作成する
+            {isEditing ? '保存する' : '作成する'}
           </Button>
         </ModalFooter>
       </ModalContent>

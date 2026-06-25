@@ -24,6 +24,7 @@ interface TimeGridViewProps {
   currentUserId: string | undefined
   onSlotClick: (day: Date, minute: number) => void
   onAllDayClick: (day: Date) => void
+  onEventClick: (ev: EventRow) => void
   onDelete: (id: string) => void
 }
 
@@ -34,6 +35,7 @@ export function TimeGridView({
   currentUserId,
   onSlotClick,
   onAllDayClick,
+  onEventClick,
   onDelete,
 }: TimeGridViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -147,7 +149,11 @@ export function TimeGridView({
                           borderRadius="sm"
                           px={1.5}
                           py={0.5}
-                          onClick={(e) => e.stopPropagation()}
+                          cursor="pointer"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onEventClick(ev)
+                          }}
                         >
                           <Text fontSize="xs" fontWeight="600" color={style.text} noOfLines={1}>
                             {ev.name}
@@ -271,10 +277,13 @@ export function TimeGridView({
                           px={1.5}
                           py={1}
                           overflow="hidden"
-                          cursor="default"
+                          cursor="pointer"
                           transition="filter 0.1s"
                           _hover={{ filter: 'brightness(0.97)', zIndex: 2 }}
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onEventClick(ev)
+                          }}
                         >
                           <Flex justify="space-between" align="start" gap={1}>
                             <Text
