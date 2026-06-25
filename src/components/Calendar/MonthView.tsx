@@ -16,11 +16,12 @@ interface MonthViewProps {
   events: EventRow[]
   now: Date
   onDayClick: (day: Date) => void
+  onEventClick: (ev: EventRow) => void
 }
 
 const MAX_CHIPS = 3
 
-export function MonthView({ anchor, events, now, onDayClick }: MonthViewProps) {
+export function MonthView({ anchor, events, now, onDayClick, onEventClick }: MonthViewProps) {
   const days = monthGridDays(anchor)
 
   return (
@@ -110,6 +111,12 @@ export function MonthView({ anchor, events, now, onDayClick }: MonthViewProps) {
                       px={1}
                       h="18px"
                       overflow="hidden"
+                      cursor="pointer"
+                      _hover={{ bg: ev.isAllDay ? style.bg : 'gray.100' }}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onEventClick(ev)
+                      }}
                     >
                       {!ev.isAllDay && (
                         <Box boxSize="6px" borderRadius="full" bg={style.dot} flexShrink={0} />

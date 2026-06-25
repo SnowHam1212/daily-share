@@ -130,6 +130,30 @@ export const EMPTY_FORM: EventForm = {
   sharingState: 'private',
 }
 
+// Local "HH:MM" (avoids the UTC shift of toISOString / getUTCHours).
+function toTimeInput(d: Date) {
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+// EventRow → EventForm, ready to pre-fill the modal for editing.
+// All-day events store an exclusive end (start-day + 1), so subtract a day to
+// recover the inclusive end date the user originally picked.
+export function eventToForm(ev: EventRow): EventForm {
+  const start = new Date(ev.startAt)
+  const end = new Date(ev.endAt)
+  const endInclusive = ev.isAllDay ? addDays(end, -1) : end
+  return {
+    name: ev.name,
+    isAllDay: ev.isAllDay,
+    startDate: toDateInput(start),
+    startTime: ev.isAllDay ? '' : toTimeInput(start),
+    endDate: toDateInput(endInclusive),
+    endTime: ev.isAllDay ? '' : toTimeInput(end),
+    eventLocation: ev.eventLocation ?? '',
+    sharingState: ev.sharingState,
+  }
+}
+
 export type Positioned = {
   ev: EventRow
   start: number // minutes from midnight (clamped to this day)

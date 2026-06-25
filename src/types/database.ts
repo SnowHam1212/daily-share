@@ -105,6 +105,30 @@ export type Database = {
         }
         Relationships: []
       }
+      team_messages: {
+        Row: {
+          id: string
+          teamId: string
+          userId: string
+          body: string
+          createdAt: string | null
+        }
+        Insert: {
+          id?: string
+          teamId: string
+          userId: string
+          body: string
+          createdAt?: string | null
+        }
+        Update: {
+          id?: string
+          teamId?: string
+          userId?: string
+          body?: string
+          createdAt?: string | null
+        }
+        Relationships: []
+      }
       events: {
         Row: {
           id: string

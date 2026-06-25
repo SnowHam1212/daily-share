@@ -2,6 +2,7 @@ import { useState } from 'react'
 import CalendarTab from '../Calendar/CalendarTab'
 import MapTab from '../Map/MapTab'
 import TeamsTab from '../Team/TeamsTab'
+import ChatTab from '../Chat/ChatTab'
 import {
   Box,
   Flex,
@@ -67,6 +68,7 @@ export function MainLayout() {
                 {[
                   { icon: '🗓', label: 'カレンダー' },
                   { icon: '🗺', label: 'マップ' },
+                  { icon: '💬', label: 'チャット' },
                   { icon: '👥', label: 'チーム' },
                 ].map((t) => (
                   <Tab
@@ -142,6 +144,9 @@ export function MainLayout() {
             </TabPanel>
             <TabPanel p={0}>
               <MapTab />
+            </TabPanel>
+            <TabPanel p={0}>
+              <ChatTab />
             </TabPanel>
             <TabPanel p={0}>
               <TeamsTab />
