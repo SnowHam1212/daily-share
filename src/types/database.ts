@@ -174,6 +174,7 @@ export type Database = {
           lat: number | null
           lng: number | null
           sharingState: 'private' | 'friends' | 'team'
+          sharedTeamIds: string[]
           updatedAt: string | null
         }
         Insert: {
@@ -181,6 +182,7 @@ export type Database = {
           lat?: number | null
           lng?: number | null
           sharingState?: 'private' | 'friends' | 'team'
+          sharedTeamIds?: string[]
           updatedAt?: string | null
         }
         Update: {
@@ -188,6 +190,7 @@ export type Database = {
           lat?: number | null
           lng?: number | null
           sharingState?: 'private' | 'friends' | 'team'
+          sharedTeamIds?: string[]
           updatedAt?: string | null
         }
         Relationships: []
