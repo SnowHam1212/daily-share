@@ -28,12 +28,16 @@ type AuthContextValue = {
   teams: Array<Team>
   loading: boolean
   displayNameMissing: boolean
+  passwordRecovery: boolean
   refreshProfile: () => Promise<void>
   updateProfile: (userId: string, values: UserUpdate) => Promise<DatabaseResponse<Profile>>
   signInWithEmail: (email: string, password: string) => Promise<AuthResponse>
   signUpWithEmail: (email: string, password: string) => Promise<AuthResponse>
   signInWithGoogle: () => Promise<OAuthResponse>
   signOut: () => Promise<SignOutResponse>
+  sendPasswordReset: (email: string) => Promise<{ error: { message: string } | null }>
+  updatePassword: (password: string) => Promise<{ error: { message: string } | null }>
+  clearPasswordRecovery: () => void
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -44,6 +48,7 @@ function useProvideAuth() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [teams, setTeams] = useState<Array<Team>>([])
   const [loading, setLoading] = useState(true)
+  const [passwordRecovery, setPasswordRecovery] = useState(false)
 
   const fetchProfileAndTeams = useCallback(async (userId: string | undefined) => {
     if (!userId) {
@@ -99,7 +104,8 @@ function useProvideAuth() {
       fetchProfileAndTeams(session?.user?.id)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true)
       setSession(session)
       setUser(session?.user ?? null)
       fetchProfileAndTeams(session?.user?.id)
@@ -119,6 +125,16 @@ function useProvideAuth() {
 
   const signOut = async () => await supabase.auth.signOut()
 
+  const sendPasswordReset = async (email: string) =>
+    await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/`,
+    })
+
+  const updatePassword = async (password: string) =>
+    await supabase.auth.updateUser({ password })
+
+  const clearPasswordRecovery = () => setPasswordRecovery(false)
+
   const updateProfile = async (userId: string, values: UserUpdate) =>
     await supabase.from('users').update(values).eq('id', userId).select().single()
 
@@ -135,12 +151,16 @@ function useProvideAuth() {
     teams,
     loading,
     displayNameMissing,
+    passwordRecovery,
     refreshProfile,
     updateProfile,
     signInWithEmail,
     signUpWithEmail,
     signInWithGoogle,
     signOut,
+    sendPasswordReset,
+    updatePassword,
+    clearPasswordRecovery,
   }
 }
 
