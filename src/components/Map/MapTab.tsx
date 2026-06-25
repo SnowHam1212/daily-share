@@ -1,6 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet'
-import { Box, Button, Flex, HStack, Text, Select, VStack, Alert, AlertIcon, Badge } from '@chakra-ui/react'
+import {
+  Box,
+  Button,
+  Checkbox,
+  Flex,
+  HStack,
+  Text,
+  Select,
+  VStack,
+  Alert,
+  AlertIcon,
+  Badge,
+} from '@chakra-ui/react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { useRealtimeLocations } from '../../hooks/useRealtime'
@@ -78,6 +90,8 @@ export default function MapTab() {
   const { user, teams } = useAuth()
   const { locations, fetchLocations } = useRealtimeLocations()
   const [sharingState, setSharingState] = useState<LocationRow['sharingState']>('private')
+  // Teams to share the location with when sharingState === 'team'. Empty = all teams.
+  const [sharedTeams, setSharedTeams] = useState<Set<string>>(new Set())
   const [currentPosition, setCurrentPosition] = useState<LatLng | null>(null)
   const [permissionError, setPermissionError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -160,7 +174,7 @@ export default function MapTab() {
   }, [user])
 
   const upsertLocation = useCallback(
-    async (position: LatLng, state: LocationRow['sharingState']) => {
+    async (position: LatLng, state: LocationRow['sharingState'], sharedTeamIds: string[]) => {
       if (!user) return
       setSaving(true)
       try {
@@ -172,6 +186,8 @@ export default function MapTab() {
               lat: position.lat,
               lng: position.lng,
               sharingState: state,
+              // Only meaningful for 'team'; keep empty otherwise.
+              sharedTeamIds: state === 'team' ? sharedTeamIds : [],
             },
             { onConflict: 'userId' },
           )
@@ -191,9 +207,17 @@ export default function MapTab() {
 
   const handleRefresh = useCallback(async () => {
     if (!user || !currentPosition) return
-    await upsertLocation(currentPosition, sharingState)
+    await upsertLocation(currentPosition, sharingState, Array.from(sharedTeams))
     await Promise.all([fetchLocations(), fetchTeamMembers()])
-  }, [user, currentPosition, sharingState, upsertLocation, fetchLocations, fetchTeamMembers])
+  }, [
+    user,
+    currentPosition,
+    sharingState,
+    sharedTeams,
+    upsertLocation,
+    fetchLocations,
+    fetchTeamMembers,
+  ])
 
   const currentPositionLabel = currentPosition
     ? `${currentPosition.lat.toFixed(5)}, ${currentPosition.lng.toFixed(5)}`
@@ -234,6 +258,39 @@ export default function MapTab() {
             <option value="friends">friends（友達）</option>
             <option value="team">team（チーム）</option>
           </Select>
+
+          {/* When sharing to teams, pick which teams (none = all your teams) */}
+          {sharingState === 'team' && teams.length > 0 && (
+            <Box mt={3}>
+              <Text mb={1} fontSize="sm" fontWeight="medium">
+                共有するチーム
+              </Text>
+              <Text mb={2} fontSize="xs" color="gray.500">
+                未選択の場合は所属する全チームに共有します。
+              </Text>
+              <VStack align="stretch" spacing={2}>
+                {teams.map((t) => (
+                  <Checkbox
+                    key={t.id}
+                    isChecked={sharedTeams.has(t.id)}
+                    onChange={() =>
+                      setSharedTeams((prev) => {
+                        const next = new Set(prev)
+                        if (next.has(t.id)) next.delete(t.id)
+                        else next.add(t.id)
+                        return next
+                      })
+                    }
+                  >
+                    <Text fontSize="sm">{t.teamName}</Text>
+                  </Checkbox>
+                ))}
+              </VStack>
+              <Text mt={2} fontSize="xs" color="gray.400">
+                変更後は「マップを更新」で反映されます。
+              </Text>
+            </Box>
+          )}
         </Box>
       </Flex>
 
