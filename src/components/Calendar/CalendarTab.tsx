@@ -51,6 +51,8 @@ export default function CalendarTab() {
   const [filters, setFilters] = useState<Set<SharingState>>(
     () => new Set<SharingState>(['private', 'friends', 'team']),
   )
+  // Teams the user has *unchecked* in the team filter. Empty = show all teams.
+  const [hiddenTeams, setHiddenTeams] = useState<Set<string>>(() => new Set())
 
   const { isOpen, onOpen, onClose } = useDisclosure()
   const toast = useToast()
@@ -114,8 +116,11 @@ export default function CalendarTab() {
   }
 
   const visibleEvents = useMemo(
-    () => events.filter((e) => filters.has(e.sharingState as SharingState)),
-    [events, filters],
+    () =>
+      events.filter(
+        (e) => filters.has(e.sharingState as SharingState) && !hiddenTeams.has(e.teamId),
+      ),
+    [events, filters, hiddenTeams],
   )
 
   const days = useMemo(() => {
@@ -143,6 +148,15 @@ export default function CalendarTab() {
       const next = new Set(prev)
       if (next.has(s)) next.delete(s)
       else next.add(s)
+      return next
+    })
+  }
+
+  function toggleTeam(teamId: string) {
+    setHiddenTeams((prev) => {
+      const next = new Set(prev)
+      if (next.has(teamId)) next.delete(teamId)
+      else next.add(teamId)
       return next
     })
   }
@@ -284,6 +298,9 @@ export default function CalendarTab() {
         onCreate={openBlank}
         filters={filters}
         onToggleFilter={toggleFilter}
+        teams={teams}
+        hiddenTeams={hiddenTeams}
+        onToggleTeam={toggleTeam}
       />
 
       <Box flex={1} minW={0}>

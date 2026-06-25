@@ -18,7 +18,7 @@ import {
   SimpleGrid,
   useDisclosure,
 } from '@chakra-ui/react'
-import { ChevronLeftIcon, ChevronRightIcon, AddIcon } from '@chakra-ui/icons'
+import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, AddIcon } from '@chakra-ui/icons'
 import { Button } from '../ui/Button'
 import {
   WEEKDAYS,
@@ -30,6 +30,8 @@ import {
   type SharingState,
 } from './calendarUtils'
 
+type SidebarTeam = { id: string; teamName: string }
+
 interface CalendarSidebarProps {
   anchor: Date
   now: Date
@@ -37,6 +39,9 @@ interface CalendarSidebarProps {
   onCreate: () => void
   filters: Set<SharingState>
   onToggleFilter: (s: SharingState) => void
+  teams: SidebarTeam[]
+  hiddenTeams: Set<string>
+  onToggleTeam: (teamId: string) => void
 }
 
 export function CalendarSidebar({
@@ -46,6 +51,9 @@ export function CalendarSidebar({
   onCreate,
   filters,
   onToggleFilter,
+  teams,
+  hiddenTeams,
+  onToggleTeam,
 }: CalendarSidebarProps) {
   // The month shown in the mini calendar (independent of the main anchor).
   const [miniMonth, setMiniMonth] = useState(() => new Date(anchor))
@@ -256,6 +264,52 @@ export function CalendarSidebar({
           ))}
         </VStack>
       </Box>
+
+      {/* Team filter — a pull-down checklist of the user's teams */}
+      {teams.length > 0 && (
+        <Box mt={6}>
+          <Text fontSize="xs" fontWeight="bold" color="gray.500" mb={2} letterSpacing="wide">
+            チーム
+          </Text>
+          <Popover placement="bottom-start">
+            <PopoverTrigger>
+              <Button
+                variant="secondary"
+                w="full"
+                justifyContent="space-between"
+                rightIcon={<ChevronDownIcon />}
+                fontWeight="500"
+              >
+                <Text fontSize="sm" noOfLines={1}>
+                  {teams.length - hiddenTeams.size === teams.length
+                    ? 'すべてのチーム'
+                    : `${teams.length - hiddenTeams.size}/${teams.length} チーム`}
+                </Text>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent w="240px">
+              <PopoverArrow />
+              <PopoverBody>
+                <VStack align="stretch" spacing={2} maxH="240px" overflowY="auto">
+                  {teams.map((t) => (
+                    <Checkbox
+                      key={t.id}
+                      isChecked={!hiddenTeams.has(t.id)}
+                      onChange={() => onToggleTeam(t.id)}
+                      colorScheme="primary"
+                      size="sm"
+                    >
+                      <Text fontSize="sm" color="gray.700" noOfLines={1}>
+                        {t.teamName}
+                      </Text>
+                    </Checkbox>
+                  ))}
+                </VStack>
+              </PopoverBody>
+            </PopoverContent>
+          </Popover>
+        </Box>
+      )}
     </Box>
   )
 }
