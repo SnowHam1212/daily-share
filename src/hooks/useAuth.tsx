@@ -38,6 +38,7 @@ type AuthContextValue = {
   sendPasswordReset: (email: string) => Promise<{ error: { message: string } | null }>
   updatePassword: (password: string) => Promise<{ error: { message: string } | null }>
   clearPasswordRecovery: () => void
+  deleteAccount: () => Promise<{ error: { message: string } | null }>
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -135,6 +136,12 @@ function useProvideAuth() {
 
   const clearPasswordRecovery = () => setPasswordRecovery(false)
 
+  const deleteAccount = async () => {
+    const { error } = await supabase.rpc('delete_own_account')
+    if (!error) await supabase.auth.signOut()
+    return { error: error ? { message: error.message } : null }
+  }
+
   const updateProfile = async (userId: string, values: UserUpdate) =>
     await supabase.from('users').update(values).eq('id', userId).select().single()
 
@@ -161,6 +168,7 @@ function useProvideAuth() {
     sendPasswordReset,
     updatePassword,
     clearPasswordRecovery,
+    deleteAccount,
   }
 }
 

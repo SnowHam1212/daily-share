@@ -227,6 +227,10 @@ export type Database = {
         Args: { other_id: string }
         Returns: undefined
       }
+      delete_own_account: {
+        Args: Record<string, never>
+        Returns: undefined
+      }
     }
     Enums: {
       sharing_state: 'private' | 'friends' | 'team'

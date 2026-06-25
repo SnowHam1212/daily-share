@@ -33,8 +33,22 @@ interface AccountModalProps {
 }
 
 export function AccountModal({ isOpen, onClose, initialTab = 0 }: AccountModalProps) {
-  const { user, profile, updateProfile, refreshProfile, signOut } = useAuth()
+  const { user, profile, updateProfile, refreshProfile, signOut, deleteAccount } = useAuth()
   const toast = useToast()
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  async function handleDelete() {
+    setDeleting(true)
+    const { error } = await deleteAccount()
+    setDeleting(false)
+    if (error) {
+      toast({ status: 'error', title: '削除できませんでした', description: error.message })
+      return
+    }
+    // signOut 済み。AuthGuard がログイン画面へ戻す。
+    onClose()
+  }
   // Initialized from the current profile on mount. The parent mounts this only
   // while open, so each open starts fresh from the latest profile.
   const [tabIndex, setTabIndex] = useState(initialTab)
@@ -182,6 +196,47 @@ export function AccountModal({ isOpen, onClose, initialTab = 0 }: AccountModalPr
                   >
                     ログアウト
                   </Button>
+
+                  <Divider borderColor="gray.200" />
+
+                  {/* Danger zone — irreversible account deletion */}
+                  <Box bg="danger.50" border="1px solid" borderColor="danger.200" borderRadius="lg" p={3}>
+                    <Text fontSize="sm" fontWeight="700" color="danger.700" mb={1}>
+                      アカウントを削除
+                    </Text>
+                    <Text fontSize="xs" color="danger.700" mb={3}>
+                      アカウントと、予定・位置・フレンド・チームのメンバー情報・チャットなど、
+                      あなたに紐づくデータがすべて完全に削除されます。この操作は取り消せません。
+                    </Text>
+                    {confirmingDelete ? (
+                      <HStack>
+                        <Button
+                          size="sm"
+                          variant="signal"
+                          bg="danger.600"
+                          _hover={{ bg: 'danger.700' }}
+                          isLoading={deleting}
+                          loadingText="削除中"
+                          onClick={handleDelete}
+                        >
+                          本当に削除する
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setConfirmingDelete(false)}>
+                          やめる
+                        </Button>
+                      </HStack>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        color="danger.600"
+                        borderColor="danger.300"
+                        onClick={() => setConfirmingDelete(true)}
+                      >
+                        アカウントを削除する
+                      </Button>
+                    )}
+                  </Box>
                 </VStack>
               </TabPanel>
             </TabPanels>
