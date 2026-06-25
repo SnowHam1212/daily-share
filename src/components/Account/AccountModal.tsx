@@ -25,6 +25,7 @@ import {
 import { useAuth } from '../../hooks/useAuth'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
+import { LegalModal, type LegalDoc } from '../Legal/LegalModal'
 
 interface AccountModalProps {
   isOpen: boolean
@@ -37,6 +38,7 @@ export function AccountModal({ isOpen, onClose, initialTab = 0 }: AccountModalPr
   const toast = useToast()
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [legalDoc, setLegalDoc] = useState<LegalDoc | null>(null)
 
   async function handleDelete() {
     setDeleting(true)
@@ -199,6 +201,17 @@ export function AccountModal({ isOpen, onClose, initialTab = 0 }: AccountModalPr
 
                   <Divider borderColor="gray.200" />
 
+                  <HStack spacing={4} fontSize="sm">
+                    <Box as="span" color="primary.600" cursor="pointer" onClick={() => setLegalDoc('terms')}>
+                      利用規約
+                    </Box>
+                    <Box as="span" color="primary.600" cursor="pointer" onClick={() => setLegalDoc('privacy')}>
+                      プライバシーポリシー
+                    </Box>
+                  </HStack>
+
+                  <Divider borderColor="gray.200" />
+
                   {/* Danger zone — irreversible account deletion */}
                   <Box bg="danger.50" border="1px solid" borderColor="danger.200" borderRadius="lg" p={3}>
                     <Text fontSize="sm" fontWeight="700" color="danger.700" mb={1}>
@@ -254,6 +267,7 @@ export function AccountModal({ isOpen, onClose, initialTab = 0 }: AccountModalPr
           )}
         </ModalFooter>
       </ModalContent>
+      <LegalModal doc={legalDoc} onClose={() => setLegalDoc(null)} />
     </Modal>
   )
 }
