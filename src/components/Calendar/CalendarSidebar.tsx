@@ -89,10 +89,10 @@ export function CalendarSidebar({
         type="button"
         onClick={goToday}
         align="center"
-        gap={3}
+        gap={2.5}
         w="full"
-        mb={6}
-        p={2.5}
+        mb={4}
+        p={2}
         borderRadius="xl"
         border="1px solid"
         borderColor="gray.200"
@@ -102,7 +102,7 @@ export function CalendarSidebar({
         _hover={{ borderColor: 'signal.300', bg: 'signal.50' }}
       >
         <Center
-          boxSize={12}
+          boxSize={10}
           flexShrink={0}
           flexDirection="column"
           lineHeight="1"
@@ -128,7 +128,7 @@ export function CalendarSidebar({
       </Flex>
 
       {/* Mini month calendar */}
-      <Box mb={6}>
+      <Box mb={4}>
         <Flex align="center" justify="space-between" mb={2}>
           <Popover isOpen={isOpen} onOpen={onOpen} onClose={onClose} placement="bottom-start">
             <PopoverTrigger>
@@ -267,7 +267,7 @@ export function CalendarSidebar({
 
       {/* Team filter — a pull-down checklist of the user's teams */}
       {teams.length > 0 && (
-        <Box mt={6}>
+        <Box mt={4}>
           <Text fontSize="xs" fontWeight="bold" color="gray.500" mb={2} letterSpacing="wide">
             チーム
           </Text>
