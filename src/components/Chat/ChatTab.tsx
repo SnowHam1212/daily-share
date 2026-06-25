@@ -139,16 +139,21 @@ export default function ChatTab() {
     if (!body || !teamId || !user) return
     setSending(true)
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('team_messages')
         .insert({ teamId, userId: user.id, body })
+        .select()
+        .single()
       if (error) {
         console.error('send message error', error)
         return
       }
       setDraft('')
-      // Realtime will append, but refetch as a fallback if it doesn't arrive.
-      void fetchMessages(teamId, limit)
+      // Append the inserted row directly (dedup with the Realtime echo) so we
+      // never refetch the whole list — that caused the scroll to jump to top.
+      if (data) {
+        setMessages((prev) => (prev.some((m) => m.id === data.id) ? prev : [...prev, data]))
+      }
     } finally {
       setSending(false)
     }
