@@ -5,10 +5,13 @@
 -- visible only to members of the listed teams. An empty list keeps the previous
 -- behaviour (shared with every team the owner belongs to), so existing rows are
 -- unaffected.
+--
+-- NOTE: renamed from 0004 (which collided with 0004_team_messages_retention) and
+-- made idempotent so it is safe to (re)apply regardless of current DB state.
 -- ============================================================
 
 ALTER TABLE locations
-  ADD COLUMN "sharedTeamIds" uuid[] NOT NULL DEFAULT '{}';
+  ADD COLUMN IF NOT EXISTS "sharedTeamIds" uuid[] NOT NULL DEFAULT '{}';
 
 -- Rebuild the SELECT policy so the 'team' case respects sharedTeamIds.
 DROP POLICY IF EXISTS "locations_select" ON locations;
