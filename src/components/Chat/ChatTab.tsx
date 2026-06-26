@@ -12,6 +12,7 @@ import {
   Select,
   Spinner,
   Center,
+  useToast,
 } from '@chakra-ui/react'
 import { ArrowUpIcon } from '@chakra-ui/icons'
 import { supabase } from '../../lib/supabase'
@@ -34,6 +35,7 @@ function formatStamp(iso: string | null) {
 
 export default function ChatTab() {
   const { user, teams } = useAuth()
+  const toast = useToast()
   const [teamId, setTeamId] = useState<string | null>(teams[0]?.id ?? null)
   const [messages, setMessages] = useState<MessageRow[]>([])
   const [memberNames, setMemberNames] = useState<Map<string, string>>(new Map())
@@ -128,6 +130,7 @@ export default function ChatTab() {
         .insert({ teamId, userId: user.id, body })
       if (error) {
         console.error('send message error', error)
+        toast({ status: 'error', title: '送信できませんでした', description: error.message })
         return
       }
       setDraft('')
