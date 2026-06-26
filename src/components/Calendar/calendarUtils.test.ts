@@ -30,6 +30,7 @@ function makeEvent(overrides: Partial<EventRow> & { startAt: string; endAt: stri
     recurrence: overrides.recurrence ?? 'none',
     recurrenceEndDate: overrides.recurrenceEndDate ?? null,
     timezone: overrides.timezone ?? null,
+    reminderMinutes: overrides.reminderMinutes ?? null,
     createdAt: overrides.createdAt ?? null,
     startAt: overrides.startAt,
     endAt: overrides.endAt,
