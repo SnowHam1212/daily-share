@@ -18,6 +18,8 @@ import {
   List,
   ListItem,
   Avatar,
+  Switch,
+  FormLabel,
 } from '@chakra-ui/react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -50,6 +52,26 @@ const TILE_LAYERS = {
 type TileLayerKey = keyof typeof TILE_LAYERS
 
 const DEFAULT_ZOOM = 13
+
+// Live-sharing throttle: only auto-upsert when enough time has passed AND the
+// user has moved enough — saves battery and DB writes.
+const LIVE_MIN_INTERVAL_MS = 15_000
+const LIVE_MIN_DISTANCE_M = 25
+// While live, refresh others' pins on this cadence.
+const LIVE_REFRESH_MS = 20_000
+
+function distanceMeters(a: LatLng, b: LatLng): number {
+  const R = 6_371_000
+  const toRad = (d: number) => (d * Math.PI) / 180
+  const dLat = toRad(b.lat - a.lat)
+  const dLng = toRad(b.lng - a.lng)
+  const lat1 = toRad(a.lat)
+  const lat2 = toRad(b.lat)
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(h))
+}
 
 function RecenterMap({ position }: { position: LatLng | null }) {
   const map = useMap()
@@ -125,6 +147,11 @@ export default function MapTab() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
   const [flyTarget, setFlyTarget] = useState<{ pos: LatLng; nonce: number } | null>(null)
+  // Live sharing: auto-upsert location as the user moves (vs. manual button).
+  const [liveSharing, setLiveSharing] = useState(false)
+  // Latest auto-send fn + last-sent marker, read from the geolocation watch.
+  const autoSendRef = useRef<(pos: LatLng) => void>(() => {})
+  const lastSentRef = useRef<{ at: number; pos: LatLng } | null>(null)
 
   const teamIds = useMemo(() => teams.map((t) => t.id), [teams])
 
@@ -230,10 +257,12 @@ export default function MapTab() {
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         setPermissionError(null)
-        setCurrentPosition({
+        const pos = {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
-        })
+        }
+        setCurrentPosition(pos)
+        autoSendRef.current(pos)
       },
       (error) => {
         setPermissionError(error.message || '位置情報の取得に失敗しました。')
@@ -282,6 +311,44 @@ export default function MapTab() {
     [user],
   )
 
+  // Keep the geolocation watch's auto-send pointed at the latest settings,
+  // applying the time/distance throttle.
+  useEffect(() => {
+    autoSendRef.current = (pos: LatLng) => {
+      if (!liveSharing) return
+      const now = Date.now()
+      const last = lastSentRef.current
+      if (
+        last &&
+        now - last.at < LIVE_MIN_INTERVAL_MS &&
+        distanceMeters(last.pos, pos) < LIVE_MIN_DISTANCE_M
+      ) {
+        return
+      }
+      lastSentRef.current = { at: now, pos }
+      void upsertLocation(pos, sharingState, Array.from(sharedTeams))
+    }
+  }, [liveSharing, sharingState, sharedTeams, upsertLocation])
+
+  // On turning live ON, send the current position immediately.
+  useEffect(() => {
+    if (liveSharing && currentPosition) {
+      lastSentRef.current = { at: Date.now(), pos: currentPosition }
+      void upsertLocation(currentPosition, sharingState, Array.from(sharedTeams))
+    }
+    // Only re-run when toggled, not on every position tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveSharing])
+
+  // While live, periodically refresh others' pins.
+  useEffect(() => {
+    if (!liveSharing) return
+    const id = setInterval(() => {
+      void fetchLocations()
+    }, LIVE_REFRESH_MS)
+    return () => clearInterval(id)
+  }, [liveSharing, fetchLocations])
+
   const handleRefresh = useCallback(async () => {
     if (!user || !currentPosition) return
     await upsertLocation(currentPosition, sharingState, Array.from(sharedTeams))
@@ -314,11 +381,28 @@ export default function MapTab() {
           <Text fontSize="2xl" fontWeight="semibold">
             マップ
           </Text>
-          <Text color="gray.600">共有範囲を選んで「マップを更新」すると、現在地が送信され、チームメンバーや友だちの位置が表示されます。左上の検索から特定の人を探せます。</Text>
+          <Text color="gray.600">「ライブ共有」をオンにすると、現在地が自動で送信され続けます。手動で送りたいときは「マップを更新」を押してください。左上の検索から特定の人を探せます。</Text>
           <HStack spacing={3} flexWrap="wrap">
             <Badge colorScheme={sharingState === 'private' ? 'gray' : sharingState === 'friends' ? 'blue' : 'purple'}>
               {sharingState}
             </Badge>
+            <HStack spacing={2}>
+              <FormLabel htmlFor="live-sharing" mb={0} fontSize="sm">
+                ライブ共有
+              </FormLabel>
+              <Switch
+                id="live-sharing"
+                colorScheme="green"
+                isChecked={liveSharing}
+                isDisabled={!currentPosition}
+                onChange={(e) => setLiveSharing(e.target.checked)}
+              />
+              {liveSharing && (
+                <Badge colorScheme="green" variant="subtle">
+                  ● ライブ
+                </Badge>
+              )}
+            </HStack>
             <Text>{currentPositionLabel}</Text>
             <Text>{saving ? '保存中...' : lastSavedAt ? `最終更新: ${lastSavedAt}` : ''}</Text>
             <Button
