@@ -24,6 +24,7 @@ import {
 import { useAuth } from '../../hooks/useAuth'
 import { Wordmark } from '../ui/Wordmark'
 import { AccountModal } from '../Account/AccountModal'
+import { NotificationBell } from '../Notifications/NotificationBell'
 
 // Each tab is code-split: its JS (incl. Leaflet for the map) only loads when the
 // tab is first opened, keeping the initial bundle small. `isLazy` on <Tabs>
@@ -106,6 +107,8 @@ export function MainLayout() {
                 ))}
               </TabList>
 
+              <HStack spacing={1}>
+              <NotificationBell userId={user?.id} />
               <Menu>
                 <MenuButton
                   as={Button}
@@ -146,6 +149,7 @@ export function MainLayout() {
                   </MenuItem>
                 </MenuList>
               </Menu>
+              </HStack>
             </Flex>
           </Container>
         </Box>
