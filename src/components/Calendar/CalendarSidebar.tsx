@@ -72,7 +72,14 @@ export function CalendarSidebar({
   }, [miniMonth])
 
   return (
-    <Box w="260px" flexShrink={0} display={{ base: 'none', lg: 'block' }} pr={6}>
+    <Box
+      w="260px"
+      flexShrink={0}
+      display={{ base: 'none', lg: 'block' }}
+      pr={6}
+      maxH={{ lg: 'calc(100dvh - 136px)' }}
+      overflowY={{ lg: 'auto' }}
+    >
       <Button
         variant="signal"
         leftIcon={<AddIcon boxSize={3} />}
