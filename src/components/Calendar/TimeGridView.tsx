@@ -65,7 +65,7 @@ export function TimeGridView({
             ref={scrollRef}
             direction="column"
             overflowY="auto"
-            maxH={{ base: '74vh', md: 'calc(100vh - 240px)' }}
+            maxH={{ base: '74vh', md: 'calc(100dvh - 200px)' }}
           >
             {/* Sticky header: day labels + all-day row stay visible while scrolling */}
             <Box position="sticky" top={0} zIndex={4} bg="paper-2">

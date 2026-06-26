@@ -42,7 +42,7 @@ export function MonthView({ anchor, events, now, onDayClick, onEventClick }: Mon
       </Grid>
 
       {/* 6-week grid */}
-      <Grid templateColumns="repeat(7, 1fr)" templateRows="repeat(6, 1fr)" h={{ base: 'auto', md: 'calc(100vh - 220px)' }}>
+      <Grid templateColumns="repeat(7, 1fr)" templateRows="repeat(6, 1fr)" h={{ base: 'auto', md: 'calc(100dvh - 200px)' }}>
         {days.map((d) => {
           const inMonth = isSameMonth(d, anchor)
           const today = isSameDay(d, now)
