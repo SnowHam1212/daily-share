@@ -167,7 +167,12 @@ export type Database = {
       }
     }
     Views: { [_ in never]: never }
-    Functions: { [_ in never]: never }
+    Functions: {
+      join_team_by_code: {
+        Args: { code: string }
+        Returns: string
+      }
+    }
     Enums: {
       sharing_state: 'private' | 'friends' | 'team'
     }
