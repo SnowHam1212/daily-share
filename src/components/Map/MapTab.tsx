@@ -12,6 +12,12 @@ import {
   Alert,
   AlertIcon,
   Badge,
+  Input,
+  InputGroup,
+  InputLeftElement,
+  List,
+  ListItem,
+  Avatar,
 } from '@chakra-ui/react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -86,6 +92,20 @@ function TripleClickRecenter({ position }: { position: LatLng | null }) {
   return null
 }
 
+// Pan/zoom the map to a chosen person. `nonce` lets repeated selections of the
+// same person re-trigger the fly-to.
+function FlyToTarget({ target }: { target: { pos: LatLng; nonce: number } | null }) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (target) {
+      map.flyTo([target.pos.lat, target.pos.lng], Math.max(map.getZoom(), DEFAULT_ZOOM))
+    }
+  }, [map, target])
+
+  return null
+}
+
 export default function MapTab() {
   const { user, teams } = useAuth()
   const { locations, fetchLocations } = useRealtimeLocations()
@@ -99,6 +119,11 @@ export default function MapTab() {
   const [tileLayer, setTileLayer] = useState<TileLayerKey>('map')
   // displayName for every teammate (across all of the user's teams)
   const [memberNames, setMemberNames] = useState<Map<string, string>>(new Map())
+  // displayName for every friend
+  const [friendNames, setFriendNames] = useState<Map<string, string>>(new Map())
+  // "find people" search box
+  const [searchQuery, setSearchQuery] = useState('')
+  const [flyTarget, setFlyTarget] = useState<{ pos: LatLng; nonce: number } | null>(null)
 
   const teamIds = useMemo(() => teams.map((t) => t.id), [teams])
 
@@ -123,17 +148,64 @@ export default function MapTab() {
     setMemberNames(new Map((users ?? []).map((u) => [u.id, u.displayName])))
   }, [teamIds])
 
-  // Only show teammates' pins (and always your own).
+  const fetchFriends = useCallback(async () => {
+    if (!user) {
+      setFriendNames(new Map())
+      return
+    }
+    const { data: rows } = await supabase
+      .from('user_friends')
+      .select('friendId')
+      .eq('userId', user.id)
+    const ids = Array.from(new Set((rows ?? []).map((r) => r.friendId)))
+    if (ids.length === 0) {
+      setFriendNames(new Map())
+      return
+    }
+    const { data: users } = await supabase
+      .from('users')
+      .select('id, displayName')
+      .in('id', ids)
+    setFriendNames(new Map((users ?? []).map((u) => [u.id, u.displayName])))
+  }, [user])
+
+  // displayName for anyone we're allowed to see (teammates + friends).
+  const knownNames = useMemo(() => {
+    const merged = new Map(memberNames)
+    for (const [id, name] of friendNames) merged.set(id, name)
+    return merged
+  }, [memberNames, friendNames])
+
+  // Show pins for teammates and friends (and always your own).
   const markers = useMemo(
     () =>
       locations.filter(
         (loc) =>
           loc.lat !== null &&
           loc.lng !== null &&
-          (loc.userId === user?.id || memberNames.has(loc.userId)),
+          (loc.userId === user?.id || knownNames.has(loc.userId)),
       ),
-    [locations, memberNames, user?.id],
+    [locations, knownNames, user?.id],
   )
+
+  // People who currently have a visible location, for the "find people" box.
+  const findablePeople = useMemo(
+    () =>
+      markers
+        .filter((loc) => loc.userId !== user?.id)
+        .map((loc) => ({
+          id: loc.userId,
+          name: knownNames.get(loc.userId) ?? 'メンバー',
+          pos: { lat: loc.lat as number, lng: loc.lng as number },
+        })),
+    [markers, knownNames, user?.id],
+  )
+
+  const searchResults = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return []
+    return findablePeople.filter((p) => p.name.toLowerCase().includes(q))
+  }, [searchQuery, findablePeople])
 
   useEffect(() => {
     void fetchLocations()
@@ -142,6 +214,10 @@ export default function MapTab() {
   useEffect(() => {
     void fetchTeamMembers()
   }, [fetchTeamMembers])
+
+  useEffect(() => {
+    void fetchFriends()
+  }, [fetchFriends])
 
   useEffect(() => {
     if (!user) return
@@ -208,7 +284,7 @@ export default function MapTab() {
   const handleRefresh = useCallback(async () => {
     if (!user || !currentPosition) return
     await upsertLocation(currentPosition, sharingState, Array.from(sharedTeams))
-    await Promise.all([fetchLocations(), fetchTeamMembers()])
+    await Promise.all([fetchLocations(), fetchTeamMembers(), fetchFriends()])
   }, [
     user,
     currentPosition,
@@ -217,7 +293,13 @@ export default function MapTab() {
     upsertLocation,
     fetchLocations,
     fetchTeamMembers,
+    fetchFriends,
   ])
+
+  const focusPerson = useCallback((pos: LatLng) => {
+    setFlyTarget({ pos, nonce: Date.now() })
+    setSearchQuery('')
+  }, [])
 
   const currentPositionLabel = currentPosition
     ? `${currentPosition.lat.toFixed(5)}, ${currentPosition.lng.toFixed(5)}`
@@ -230,7 +312,7 @@ export default function MapTab() {
           <Text fontSize="2xl" fontWeight="semibold">
             マップ
           </Text>
-          <Text color="gray.600">共有範囲を選んで「マップを更新」すると、現在地が送信され、チームメンバーの位置が表示されます。</Text>
+          <Text color="gray.600">共有範囲を選んで「マップを更新」すると、現在地が送信され、チームメンバーや友だちの位置が表示されます。左上の検索から特定の人を探せます。</Text>
           <HStack spacing={3} flexWrap="wrap">
             <Badge colorScheme={sharingState === 'private' ? 'gray' : sharingState === 'friends' ? 'blue' : 'purple'}>
               {sharingState}
@@ -301,6 +383,53 @@ export default function MapTab() {
       )}
 
       <Box h="calc(100vh - 280px)" position="relative">
+        {/* Find people: search teammates/friends who are sharing their location */}
+        <Box position="absolute" top={2} left={2} zIndex={1000} w={{ base: '70%', sm: '280px' }}>
+          <InputGroup bg="white" borderRadius="md" boxShadow="md">
+            <InputLeftElement pointerEvents="none" color="gray.400">
+              🔍
+            </InputLeftElement>
+            <Input
+              placeholder="人を探す（表示名）"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              bg="white"
+              borderRadius="md"
+            />
+          </InputGroup>
+          {searchQuery.trim() && (
+            <List
+              mt={1}
+              bg="white"
+              borderRadius="md"
+              boxShadow="md"
+              maxH="240px"
+              overflowY="auto"
+            >
+              {searchResults.length === 0 ? (
+                <ListItem px={3} py={2} fontSize="sm" color="gray.500">
+                  位置を共有している該当者がいません
+                </ListItem>
+              ) : (
+                searchResults.map((p) => (
+                  <ListItem
+                    key={p.id}
+                    px={3}
+                    py={2}
+                    cursor="pointer"
+                    _hover={{ bg: 'gray.100' }}
+                    onClick={() => focusPerson(p.pos)}
+                  >
+                    <HStack spacing={2}>
+                      <Avatar size="xs" name={p.name} bg="primary.500" color="white" />
+                      <Text fontSize="sm">{p.name}</Text>
+                    </HStack>
+                  </ListItem>
+                ))
+              )}
+            </List>
+          )}
+        </Box>
         <HStack
           position="absolute"
           top={2}
@@ -336,6 +465,7 @@ export default function MapTab() {
           />
           {currentPosition && <RecenterMap position={currentPosition} />}
           <TripleClickRecenter position={currentPosition} />
+          <FlyToTarget target={flyTarget} />
           {markers.map((loc) => (
             <Marker
               key={loc.userId}
@@ -345,7 +475,7 @@ export default function MapTab() {
               <Popup>
                 {loc.userId === user?.id
                   ? 'あなた'
-                  : memberNames.get(loc.userId) ?? 'チームメンバー'}
+                  : knownNames.get(loc.userId) ?? 'メンバー'}
               </Popup>
             </Marker>
           ))}
