@@ -166,6 +166,7 @@ export type Database = {
           sharingState: 'private' | 'friends' | 'team'
           recurrence: 'none' | 'daily' | 'weekly' | 'monthly'
           recurrenceEndDate: string | null
+          timezone: string | null
           createdAt: string | null
         }
         Insert: {
@@ -180,6 +181,7 @@ export type Database = {
           sharingState?: 'private' | 'friends' | 'team'
           recurrence?: 'none' | 'daily' | 'weekly' | 'monthly'
           recurrenceEndDate?: string | null
+          timezone?: string | null
           createdAt?: string | null
         }
         Update: {
@@ -194,6 +196,7 @@ export type Database = {
           sharingState?: 'private' | 'friends' | 'team'
           recurrence?: 'none' | 'daily' | 'weekly' | 'monthly'
           recurrenceEndDate?: string | null
+          timezone?: string | null
           createdAt?: string | null
         }
         Relationships: []
