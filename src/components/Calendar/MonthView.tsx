@@ -10,6 +10,7 @@ import {
   type EventRow,
   type SharingState,
 } from './calendarUtils'
+import { getHolidayName } from './holidays'
 
 interface MonthViewProps {
   anchor: Date
@@ -47,6 +48,9 @@ export function MonthView({ anchor, events, now, onDayClick, onEventClick }: Mon
           const inMonth = isSameMonth(d, anchor)
           const today = isSameDay(d, now)
           const dow = d.getDay()
+          const holiday = getHolidayName(d)
+          // 祝日は日曜と同じく赤系で表示する。
+          const isRed = dow === 0 || holiday !== null
           const dayEvents = events
             .filter((e) => overlapsDay(e, d))
             .sort((a, b) => {
@@ -86,7 +90,7 @@ export function MonthView({ anchor, events, now, onDayClick, onEventClick }: Mon
                         ? 'white'
                         : !inMonth
                           ? 'gray.400'
-                          : dow === 0
+                          : isRed
                             ? 'danger.500'
                             : dow === 6
                               ? 'primary.600'
@@ -97,6 +101,20 @@ export function MonthView({ anchor, events, now, onDayClick, onEventClick }: Mon
                   </Text>
                 </Center>
               </Flex>
+
+              {holiday && (
+                <Text
+                  fontSize="10px"
+                  color="danger.500"
+                  fontWeight="600"
+                  textAlign="center"
+                  noOfLines={1}
+                  mt="-1"
+                  mb={1}
+                >
+                  {holiday}
+                </Text>
+              )}
 
               <VStack spacing="2px" align="stretch">
                 {shown.map((ev) => {

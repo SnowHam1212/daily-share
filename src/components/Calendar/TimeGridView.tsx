@@ -16,6 +16,7 @@ import {
   type EventRow,
   type SharingState,
 } from './calendarUtils'
+import { getHolidayName } from './holidays'
 
 interface TimeGridViewProps {
   days: Date[]
@@ -75,6 +76,8 @@ export function TimeGridView({
             {days.map((d) => {
               const today = isSameDay(d, now)
               const dow = d.getDay()
+              const holiday = getHolidayName(d)
+              const isRed = dow === 0 || holiday !== null
               return (
                 <VStack
                   key={d.toISOString()}
@@ -88,7 +91,7 @@ export function TimeGridView({
                   <Text
                     fontSize="xs"
                     fontWeight="bold"
-                    color={dow === 0 ? 'danger.500' : dow === 6 ? 'primary.600' : 'gray.400'}
+                    color={isRed ? 'danger.500' : dow === 6 ? 'primary.600' : 'gray.400'}
                   >
                     {WEEKDAYS[dow]}
                   </Text>
@@ -98,11 +101,16 @@ export function TimeGridView({
                       fontWeight="700"
                       fontSize="lg"
                       lineHeight="1"
-                      color={today ? 'white' : 'gray.900'}
+                      color={today ? 'white' : isRed ? 'danger.500' : 'gray.900'}
                     >
                       {d.getDate()}
                     </Text>
                   </Center>
+                  {holiday && (
+                    <Text fontSize="10px" color="danger.500" fontWeight="600" noOfLines={1}>
+                      {holiday}
+                    </Text>
+                  )}
                 </VStack>
               )
             })}
