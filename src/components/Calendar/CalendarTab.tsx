@@ -25,6 +25,7 @@ import { CalendarSidebar } from './CalendarSidebar'
 import {
   EMPTY_FORM,
   eventToForm,
+  eventsForRange,
   startOfWeek,
   startOfDay,
   addDays,
@@ -91,19 +92,35 @@ export default function CalendarTab() {
     if (opts?.silent) setRefreshing(true)
     else setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .in('teamId', teamIds)
-        .lt('startAt', rangeEnd.toISOString())
-        .gt('endAt', rangeStart.toISOString())
-        .order('startAt', { ascending: true })
+      // (1) Non-recurring events (and recurring masters) overlapping the range.
+      // (2) Recurring masters that started before the range but recur into it.
+      // Merge + de-dupe; occurrences are expanded client-side via eventsForRange.
+      const [inRange, recurringMasters] = await Promise.all([
+        supabase
+          .from('events')
+          .select('*')
+          .in('teamId', teamIds)
+          .lt('startAt', rangeEnd.toISOString())
+          .gt('endAt', rangeStart.toISOString())
+          .order('startAt', { ascending: true }),
+        supabase
+          .from('events')
+          .select('*')
+          .in('teamId', teamIds)
+          .neq('recurrence', 'none')
+          .lt('startAt', rangeEnd.toISOString()),
+      ])
+      const error = inRange.error || recurringMasters.error
       if (error) {
         console.error('fetch events error', error)
         if (opts?.silent) toast({ status: 'error', title: '更新できませんでした', description: error.message })
         setEvents([])
       } else {
-        setEvents((data as EventRow[]) || [])
+        const byId = new Map<string, EventRow>()
+        for (const e of [...(inRange.data ?? []), ...(recurringMasters.data ?? [])] as EventRow[]) {
+          byId.set(e.id, e)
+        }
+        setEvents(Array.from(byId.values()))
       }
     } finally {
       if (opts?.silent) setRefreshing(false)
@@ -117,10 +134,10 @@ export default function CalendarTab() {
 
   const visibleEvents = useMemo(
     () =>
-      events.filter(
+      eventsForRange(events, rangeStart, rangeEnd).filter(
         (e) => filters.has(e.sharingState as SharingState) && !hiddenTeams.has(e.teamId),
       ),
-    [events, filters, hiddenTeams],
+    [events, filters, hiddenTeams, rangeStart, rangeEnd],
   )
 
   const days = useMemo(() => {
@@ -257,6 +274,8 @@ export default function CalendarTab() {
       isAllDay: form.isAllDay,
       eventLocation: form.eventLocation || null,
       sharingState: form.sharingState as SharingState,
+      recurrence: form.recurrence,
+      recurrenceEndDate: form.recurrence !== 'none' && form.recurrenceEndDate ? form.recurrenceEndDate : null,
     }
 
     const { error } = editingId

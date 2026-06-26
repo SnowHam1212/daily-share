@@ -164,6 +164,8 @@ export type Database = {
           isAllDay: boolean
           eventLocation: string | null
           sharingState: 'private' | 'friends' | 'team'
+          recurrence: 'none' | 'daily' | 'weekly' | 'monthly'
+          recurrenceEndDate: string | null
           createdAt: string | null
         }
         Insert: {
@@ -176,6 +178,8 @@ export type Database = {
           isAllDay?: boolean
           eventLocation?: string | null
           sharingState?: 'private' | 'friends' | 'team'
+          recurrence?: 'none' | 'daily' | 'weekly' | 'monthly'
+          recurrenceEndDate?: string | null
           createdAt?: string | null
         }
         Update: {
@@ -188,6 +192,8 @@ export type Database = {
           isAllDay?: boolean
           eventLocation?: string | null
           sharingState?: 'private' | 'friends' | 'team'
+          recurrence?: 'none' | 'daily' | 'weekly' | 'monthly'
+          recurrenceEndDate?: string | null
           createdAt?: string | null
         }
         Relationships: []
