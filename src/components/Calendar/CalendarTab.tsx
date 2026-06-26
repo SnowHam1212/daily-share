@@ -9,19 +9,25 @@ import {
   MenuButton,
   MenuList,
   MenuItem,
+  Drawer,
+  DrawerOverlay,
+  DrawerContent,
+  DrawerBody,
+  DrawerHeader,
+  DrawerCloseButton,
   useDisclosure,
   useToast,
   Spinner,
   Center,
 } from '@chakra-ui/react'
-import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, RepeatIcon } from '@chakra-ui/icons'
+import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, RepeatIcon, HamburgerIcon, AddIcon } from '@chakra-ui/icons'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { Button } from '../ui/Button'
 import { EventModal } from './EventModal'
 import { TimeGridView } from './TimeGridView'
 import { MonthView } from './MonthView'
-import { CalendarSidebar } from './CalendarSidebar'
+import { CalendarSidebar, CalendarSidebarBody } from './CalendarSidebar'
 import {
   EMPTY_FORM,
   eventToForm,
@@ -55,6 +61,8 @@ export default function CalendarTab() {
   const [hiddenTeams, setHiddenTeams] = useState<Set<string>>(() => new Set())
 
   const { isOpen, onOpen, onClose } = useDisclosure()
+  // Mobile drawer that hosts the sidebar (create / mini-calendar / filters).
+  const mobileNav = useDisclosure()
   const toast = useToast()
   const [form, setForm] = useState<EventForm>(EMPTY_FORM)
   // id of the event being edited; null when creating a new one
@@ -313,6 +321,13 @@ export default function CalendarTab() {
           mb={5}
         >
           <HStack spacing={3}>
+            <IconButton
+              aria-label="メニュー"
+              icon={<HamburgerIcon boxSize={5} />}
+              variant="secondary"
+              display={{ base: 'inline-flex', lg: 'none' }}
+              onClick={mobileNav.onOpen}
+            />
             <HStack
               spacing={0}
               bg="paper-2"
@@ -396,6 +411,53 @@ export default function CalendarTab() {
         setForm={setForm}
         onSubmit={handleSubmit}
         isEditing={!!editingId}
+      />
+
+      {/* Mobile: sidebar contents in a drawer */}
+      <Drawer isOpen={mobileNav.isOpen} placement="left" onClose={mobileNav.onClose} size="xs">
+        <DrawerOverlay />
+        <DrawerContent>
+          <DrawerCloseButton />
+          <DrawerHeader fontFamily="heading">カレンダー</DrawerHeader>
+          <DrawerBody pb={6}>
+            <CalendarSidebarBody
+              anchor={anchor}
+              now={now}
+              onPickDate={(d) => {
+                setAnchor(startOfDay(d))
+                mobileNav.onClose()
+              }}
+              onCreate={() => {
+                mobileNav.onClose()
+                openBlank()
+              }}
+              filters={filters}
+              onToggleFilter={toggleFilter}
+              teams={teams}
+              hiddenTeams={hiddenTeams}
+              onToggleTeam={toggleTeam}
+            />
+          </DrawerBody>
+        </DrawerContent>
+      </Drawer>
+
+      {/* Mobile: floating "create" button */}
+      <IconButton
+        aria-label="予定を作成"
+        icon={<AddIcon />}
+        onClick={openBlank}
+        display={{ base: 'inline-flex', lg: 'none' }}
+        position="fixed"
+        bottom={6}
+        right={6}
+        zIndex={20}
+        boxSize={14}
+        borderRadius="full"
+        bg="signal.500"
+        color="white"
+        boxShadow="lg"
+        _hover={{ bg: 'signal.600' }}
+        _active={{ bg: 'signal.700' }}
       />
     </Flex>
   )
