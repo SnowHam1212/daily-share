@@ -123,6 +123,7 @@ export default function MapTab() {
   const [friendNames, setFriendNames] = useState<Map<string, string>>(new Map())
   // "find people" search box
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchFocused, setSearchFocused] = useState(false)
   const [flyTarget, setFlyTarget] = useState<{ pos: LatLng; nonce: number } | null>(null)
 
   const teamIds = useMemo(() => teams.map((t) => t.id), [teams])
@@ -203,7 +204,7 @@ export default function MapTab() {
 
   const searchResults = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
-    if (!q) return []
+    if (!q) return findablePeople
     return findablePeople.filter((p) => p.name.toLowerCase().includes(q))
   }, [searchQuery, findablePeople])
 
@@ -299,6 +300,7 @@ export default function MapTab() {
   const focusPerson = useCallback((pos: LatLng) => {
     setFlyTarget({ pos, nonce: Date.now() })
     setSearchQuery('')
+    setSearchFocused(false)
   }, [])
 
   const currentPositionLabel = currentPosition
@@ -393,11 +395,14 @@ export default function MapTab() {
               placeholder="人を探す（表示名）"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              // Delay so a click on a list item registers before the list closes.
+              onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
               bg="white"
               borderRadius="md"
             />
           </InputGroup>
-          {searchQuery.trim() && (
+          {searchFocused && (
             <List
               mt={1}
               bg="white"
@@ -408,7 +413,7 @@ export default function MapTab() {
             >
               {searchResults.length === 0 ? (
                 <ListItem px={3} py={2} fontSize="sm" color="gray.500">
-                  位置を共有している該当者がいません
+                  位置を共有している人がいません
                 </ListItem>
               ) : (
                 searchResults.map((p) => (
