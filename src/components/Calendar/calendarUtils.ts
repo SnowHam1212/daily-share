@@ -2,7 +2,15 @@ import type { Database } from '../../types/database'
 
 export type EventRow = Database['public']['Tables']['events']['Row']
 export type SharingState = EventRow['sharingState']
+export type Recurrence = EventRow['recurrence']
 export type CalendarView = 'day' | 'week' | 'month'
+
+export const RECURRENCE_LABEL: Record<Recurrence, string> = {
+  none: '繰り返さない',
+  daily: '毎日',
+  weekly: '毎週',
+  monthly: '毎月',
+}
 
 export const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
 
@@ -117,6 +125,8 @@ export interface EventForm {
   endTime: string
   eventLocation: string
   sharingState: string
+  recurrence: Recurrence
+  recurrenceEndDate: string
 }
 
 export const EMPTY_FORM: EventForm = {
@@ -128,6 +138,8 @@ export const EMPTY_FORM: EventForm = {
   endTime: '',
   eventLocation: '',
   sharingState: 'private',
+  recurrence: 'none',
+  recurrenceEndDate: '',
 }
 
 // Local "HH:MM" (avoids the UTC shift of toISOString / getUTCHours).
@@ -151,7 +163,57 @@ export function eventToForm(ev: EventRow): EventForm {
     endTime: ev.isAllDay ? '' : toTimeInput(end),
     eventLocation: ev.eventLocation ?? '',
     sharingState: ev.sharingState,
+    recurrence: ev.recurrence ?? 'none',
+    recurrenceEndDate: ev.recurrenceEndDate ?? '',
   }
+}
+
+// Expand a recurring "master" event into concrete occurrences that overlap the
+// [rangeStart, rangeEnd) window. Each occurrence keeps the master's id (so
+// clicking it edits the master) but carries shifted start/end times.
+// Non-recurring events should be passed through directly, not via this helper.
+export function expandRecurring(master: EventRow, rangeStart: Date, rangeEnd: Date): EventRow[] {
+  if (!master.recurrence || master.recurrence === 'none') return []
+
+  const start = new Date(master.startAt)
+  const durationMs = new Date(master.endAt).getTime() - start.getTime()
+  // Inclusive end-of-day of the recurrence end date (or no bound).
+  const until = master.recurrenceEndDate
+    ? addDays(startOfDay(new Date(`${master.recurrenceEndDate}T00:00`)), 1)
+    : null
+
+  const step = (d: Date): Date => {
+    if (master.recurrence === 'daily') return addDays(d, 1)
+    if (master.recurrence === 'weekly') return addDays(d, 7)
+    return addMonths(d, 1) // monthly
+  }
+
+  const occurrences: EventRow[] = []
+  let cursor = new Date(start)
+  // Safety cap to avoid runaway loops on bad data.
+  for (let i = 0; i < 400 && cursor < rangeEnd; i++) {
+    if (until && cursor >= until) break
+    const occEnd = new Date(cursor.getTime() + durationMs)
+    if (occEnd > rangeStart) {
+      occurrences.push({ ...master, startAt: cursor.toISOString(), endAt: occEnd.toISOString() })
+    }
+    cursor = step(cursor)
+  }
+  return occurrences
+}
+
+// Build the list of events to render for a range: non-recurring events as-is,
+// plus expanded occurrences of recurring masters.
+export function eventsForRange(events: EventRow[], rangeStart: Date, rangeEnd: Date): EventRow[] {
+  const result: EventRow[] = []
+  for (const ev of events) {
+    if (!ev.recurrence || ev.recurrence === 'none') {
+      result.push(ev)
+    } else {
+      result.push(...expandRecurring(ev, rangeStart, rangeEnd))
+    }
+  }
+  return result
 }
 
 export type Positioned = {

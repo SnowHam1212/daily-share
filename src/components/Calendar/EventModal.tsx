@@ -18,7 +18,7 @@ import {
 } from '@chakra-ui/react'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
-import { SHARING, TIME_OPTIONS, type EventForm, type SharingState } from './calendarUtils'
+import { SHARING, RECURRENCE_LABEL, TIME_OPTIONS, type EventForm, type SharingState } from './calendarUtils'
 
 interface EventModalProps {
   isOpen: boolean
@@ -139,6 +139,32 @@ export function EventModal({ isOpen, onClose, form, setForm, onSubmit, isEditing
                 <option value="team">チーム</option>
               </Select>
             </FormControl>
+
+            <FormControl>
+              <FormLabel>繰り返し</FormLabel>
+              <Select
+                value={form.recurrence}
+                onChange={(e) => setForm({ ...form, recurrence: e.target.value as EventForm['recurrence'] })}
+              >
+                {(Object.keys(RECURRENCE_LABEL) as EventForm['recurrence'][]).map((r) => (
+                  <option key={r} value={r}>
+                    {RECURRENCE_LABEL[r]}
+                  </option>
+                ))}
+              </Select>
+            </FormControl>
+
+            {form.recurrence !== 'none' && (
+              <FormControl>
+                <FormLabel>繰り返しの終了日（任意）</FormLabel>
+                <ChakraInput
+                  type="date"
+                  value={form.recurrenceEndDate}
+                  min={form.startDate || undefined}
+                  onChange={(e) => setForm({ ...form, recurrenceEndDate: e.target.value })}
+                />
+              </FormControl>
+            )}
           </VStack>
         </ModalBody>
 
