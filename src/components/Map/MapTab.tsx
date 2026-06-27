@@ -13,6 +13,14 @@ import {
   Alert,
   AlertIcon,
   Badge,
+  Input,
+  InputGroup,
+  InputLeftElement,
+  List,
+  ListItem,
+  Avatar,
+  Switch,
+  FormLabel,
 } from '@chakra-ui/react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -45,6 +53,26 @@ const TILE_LAYERS = {
 type TileLayerKey = keyof typeof TILE_LAYERS
 
 const DEFAULT_ZOOM = 13
+
+// Live-sharing throttle: only auto-upsert when enough time has passed AND the
+// user has moved enough — saves battery and DB writes.
+const LIVE_MIN_INTERVAL_MS = 15_000
+const LIVE_MIN_DISTANCE_M = 25
+// While live, refresh others' pins on this cadence.
+const LIVE_REFRESH_MS = 20_000
+
+function distanceMeters(a: LatLng, b: LatLng): number {
+  const R = 6_371_000
+  const toRad = (d: number) => (d * Math.PI) / 180
+  const dLat = toRad(b.lat - a.lat)
+  const dLng = toRad(b.lng - a.lng)
+  const lat1 = toRad(a.lat)
+  const lat2 = toRad(b.lat)
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(h))
+}
 
 function RecenterMap({ position }: { position: LatLng | null }) {
   const map = useMap()
@@ -87,6 +115,20 @@ function TripleClickRecenter({ position }: { position: LatLng | null }) {
   return null
 }
 
+// Pan/zoom the map to a chosen person. `nonce` lets repeated selections of the
+// same person re-trigger the fly-to.
+function FlyToTarget({ target }: { target: { pos: LatLng; nonce: number } | null }) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (target) {
+      map.flyTo([target.pos.lat, target.pos.lng], Math.max(map.getZoom(), DEFAULT_ZOOM))
+    }
+  }, [map, target])
+
+  return null
+}
+
 export default function MapTab() {
   const { user, teams } = useAuth()
   const { locations, fetchLocations } = useRealtimeLocations()
@@ -100,6 +142,17 @@ export default function MapTab() {
   const [tileLayer, setTileLayer] = useState<TileLayerKey>('map')
   // displayName for every teammate (across all of the user's teams)
   const [memberNames, setMemberNames] = useState<Map<string, string>>(new Map())
+  // displayName for every friend
+  const [friendNames, setFriendNames] = useState<Map<string, string>>(new Map())
+  // "find people" search box
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchFocused, setSearchFocused] = useState(false)
+  const [flyTarget, setFlyTarget] = useState<{ pos: LatLng; nonce: number } | null>(null)
+  // Live sharing: auto-upsert location as the user moves (vs. manual button).
+  const [liveSharing, setLiveSharing] = useState(false)
+  // Latest auto-send fn + last-sent marker, read from the geolocation watch.
+  const autoSendRef = useRef<(pos: LatLng) => void>(() => {})
+  const lastSentRef = useRef<{ at: number; pos: LatLng } | null>(null)
 
   const teamIds = useMemo(() => teams.map((t) => t.id), [teams])
 
@@ -124,17 +177,64 @@ export default function MapTab() {
     setMemberNames(new Map((users ?? []).map((u) => [u.id, u.displayName])))
   }, [teamIds])
 
-  // Only show teammates' pins (and always your own).
+  const fetchFriends = useCallback(async () => {
+    if (!user) {
+      setFriendNames(new Map())
+      return
+    }
+    const { data: rows } = await supabase
+      .from('user_friends')
+      .select('friendId')
+      .eq('userId', user.id)
+    const ids = Array.from(new Set((rows ?? []).map((r) => r.friendId)))
+    if (ids.length === 0) {
+      setFriendNames(new Map())
+      return
+    }
+    const { data: users } = await supabase
+      .from('users')
+      .select('id, displayName')
+      .in('id', ids)
+    setFriendNames(new Map((users ?? []).map((u) => [u.id, u.displayName])))
+  }, [user])
+
+  // displayName for anyone we're allowed to see (teammates + friends).
+  const knownNames = useMemo(() => {
+    const merged = new Map(memberNames)
+    for (const [id, name] of friendNames) merged.set(id, name)
+    return merged
+  }, [memberNames, friendNames])
+
+  // Show pins for teammates and friends (and always your own).
   const markers = useMemo(
     () =>
       locations.filter(
         (loc) =>
           loc.lat !== null &&
           loc.lng !== null &&
-          (loc.userId === user?.id || memberNames.has(loc.userId)),
+          (loc.userId === user?.id || knownNames.has(loc.userId)),
       ),
-    [locations, memberNames, user?.id],
+    [locations, knownNames, user?.id],
   )
+
+  // People who currently have a visible location, for the "find people" box.
+  const findablePeople = useMemo(
+    () =>
+      markers
+        .filter((loc) => loc.userId !== user?.id)
+        .map((loc) => ({
+          id: loc.userId,
+          name: knownNames.get(loc.userId) ?? 'メンバー',
+          pos: { lat: loc.lat as number, lng: loc.lng as number },
+        })),
+    [markers, knownNames, user?.id],
+  )
+
+  const searchResults = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return findablePeople
+    return findablePeople.filter((p) => p.name.toLowerCase().includes(q))
+  }, [searchQuery, findablePeople])
 
   useEffect(() => {
     void fetchLocations()
@@ -143,6 +243,10 @@ export default function MapTab() {
   useEffect(() => {
     void fetchTeamMembers()
   }, [fetchTeamMembers])
+
+  useEffect(() => {
+    void fetchFriends()
+  }, [fetchFriends])
 
   useEffect(() => {
     if (!user) return
@@ -154,10 +258,12 @@ export default function MapTab() {
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         setPermissionError(null)
-        setCurrentPosition({
+        const pos = {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
-        })
+        }
+        setCurrentPosition(pos)
+        autoSendRef.current(pos)
       },
       (error) => {
         setPermissionError(error.message || '位置情報の取得に失敗しました。')
@@ -206,10 +312,48 @@ export default function MapTab() {
     [user],
   )
 
+  // Keep the geolocation watch's auto-send pointed at the latest settings,
+  // applying the time/distance throttle.
+  useEffect(() => {
+    autoSendRef.current = (pos: LatLng) => {
+      if (!liveSharing) return
+      const now = Date.now()
+      const last = lastSentRef.current
+      if (
+        last &&
+        now - last.at < LIVE_MIN_INTERVAL_MS &&
+        distanceMeters(last.pos, pos) < LIVE_MIN_DISTANCE_M
+      ) {
+        return
+      }
+      lastSentRef.current = { at: now, pos }
+      void upsertLocation(pos, sharingState, Array.from(sharedTeams))
+    }
+  }, [liveSharing, sharingState, sharedTeams, upsertLocation])
+
+  // On turning live ON, send the current position immediately.
+  useEffect(() => {
+    if (liveSharing && currentPosition) {
+      lastSentRef.current = { at: Date.now(), pos: currentPosition }
+      void upsertLocation(currentPosition, sharingState, Array.from(sharedTeams))
+    }
+    // Only re-run when toggled, not on every position tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveSharing])
+
+  // While live, periodically refresh others' pins.
+  useEffect(() => {
+    if (!liveSharing) return
+    const id = setInterval(() => {
+      void fetchLocations()
+    }, LIVE_REFRESH_MS)
+    return () => clearInterval(id)
+  }, [liveSharing, fetchLocations])
+
   const handleRefresh = useCallback(async () => {
     if (!user || !currentPosition) return
     await upsertLocation(currentPosition, sharingState, Array.from(sharedTeams))
-    await Promise.all([fetchLocations(), fetchTeamMembers()])
+    await Promise.all([fetchLocations(), fetchTeamMembers(), fetchFriends()])
   }, [
     user,
     currentPosition,
@@ -218,7 +362,14 @@ export default function MapTab() {
     upsertLocation,
     fetchLocations,
     fetchTeamMembers,
+    fetchFriends,
   ])
+
+  const focusPerson = useCallback((pos: LatLng) => {
+    setFlyTarget({ pos, nonce: Date.now() })
+    setSearchQuery('')
+    setSearchFocused(false)
+  }, [])
 
   const currentPositionLabel = currentPosition
     ? `${currentPosition.lat.toFixed(5)}, ${currentPosition.lng.toFixed(5)}`
@@ -231,11 +382,28 @@ export default function MapTab() {
           <Text fontSize="2xl" fontWeight="semibold">
             マップ
           </Text>
-          <Text color="gray.600">共有範囲を選んで「マップを更新」すると、現在地が送信され、チームメンバーの位置が表示されます。</Text>
+          <Text color="gray.600">「ライブ共有」をオンにすると、現在地が自動で送信され続けます。手動で送りたいときは「マップを更新」を押してください。左上の検索から特定の人を探せます。</Text>
           <HStack spacing={3} flexWrap="wrap">
             <Badge colorScheme={sharingState === 'private' ? 'gray' : sharingState === 'friends' ? 'blue' : 'purple'}>
               {sharingState}
             </Badge>
+            <HStack spacing={2}>
+              <FormLabel htmlFor="live-sharing" mb={0} fontSize="sm">
+                ライブ共有
+              </FormLabel>
+              <Switch
+                id="live-sharing"
+                colorScheme="green"
+                isChecked={liveSharing}
+                isDisabled={!currentPosition}
+                onChange={(e) => setLiveSharing(e.target.checked)}
+              />
+              {liveSharing && (
+                <Badge colorScheme="green" variant="subtle">
+                  ● ライブ
+                </Badge>
+              )}
+            </HStack>
             <Text>{currentPositionLabel}</Text>
             <Text>{saving ? '保存中...' : lastSavedAt ? `最終更新: ${lastSavedAt}` : ''}</Text>
             <Button
@@ -302,6 +470,56 @@ export default function MapTab() {
       )}
 
       <Box h="calc(100vh - 280px)" position="relative">
+        {/* Find people: search teammates/friends who are sharing their location */}
+        <Box position="absolute" top={2} left={2} zIndex={1000} w={{ base: '70%', sm: '280px' }}>
+          <InputGroup bg="white" borderRadius="md" boxShadow="md">
+            <InputLeftElement pointerEvents="none" color="gray.400">
+              🔍
+            </InputLeftElement>
+            <Input
+              placeholder="人を探す（表示名）"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              // Delay so a click on a list item registers before the list closes.
+              onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
+              bg="white"
+              borderRadius="md"
+            />
+          </InputGroup>
+          {searchFocused && (
+            <List
+              mt={1}
+              bg="white"
+              borderRadius="md"
+              boxShadow="md"
+              maxH="240px"
+              overflowY="auto"
+            >
+              {searchResults.length === 0 ? (
+                <ListItem px={3} py={2} fontSize="sm" color="gray.500">
+                  位置を共有している人がいません
+                </ListItem>
+              ) : (
+                searchResults.map((p) => (
+                  <ListItem
+                    key={p.id}
+                    px={3}
+                    py={2}
+                    cursor="pointer"
+                    _hover={{ bg: 'gray.100' }}
+                    onClick={() => focusPerson(p.pos)}
+                  >
+                    <HStack spacing={2}>
+                      <Avatar size="xs" name={p.name} bg="primary.500" color="white" />
+                      <Text fontSize="sm">{p.name}</Text>
+                    </HStack>
+                  </ListItem>
+                ))
+              )}
+            </List>
+          )}
+        </Box>
         <HStack
           position="absolute"
           top={2}
@@ -337,6 +555,7 @@ export default function MapTab() {
           />
           {currentPosition && <RecenterMap position={currentPosition} />}
           <TripleClickRecenter position={currentPosition} />
+          <FlyToTarget target={flyTarget} />
           {markers.map((loc) => (
             <Marker
               key={loc.userId}
@@ -346,7 +565,7 @@ export default function MapTab() {
               <Popup>
                 {loc.userId === user?.id
                   ? 'あなた'
-                  : memberNames.get(loc.userId) ?? 'チームメンバー'}
+                  : knownNames.get(loc.userId) ?? 'メンバー'}
               </Popup>
             </Marker>
           ))}
