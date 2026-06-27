@@ -14,6 +14,15 @@ export default defineConfig({
   plugins: [react()],
   test: {
     projects: [{
+      // Plain unit tests (pure logic) running in Node — no browser required,
+      // so they run fast in CI. Run with: vitest run --project unit
+      extends: true,
+      test: {
+        name: 'unit',
+        environment: 'node',
+        include: ['src/**/*.test.ts'],
+      },
+    }, {
       extends: true,
       plugins: [
       // The plugin will run tests for the stories defined in your Storybook config

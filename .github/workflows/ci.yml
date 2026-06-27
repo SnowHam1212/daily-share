@@ -27,9 +27,8 @@ jobs:
       - name: Build
         run: npm run build
 
-      # テストを追加したらコメントアウトを外す
-      # - name: Test
-      #   run: npm test
+      - name: Test
+        run: npm test
 
   # バックエンドが決まったらここに追加する
   # backend:
