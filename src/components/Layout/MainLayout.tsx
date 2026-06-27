@@ -1,9 +1,4 @@
-import { useState } from 'react'
-import CalendarTab from '../Calendar/CalendarTab'
-import MapTab from '../Map/MapTab'
-import TeamsTab from '../Team/TeamsTab'
-import ChatTab from '../Chat/ChatTab'
-import FriendsTab from '../Friends/FriendsTab'
+import { lazy, Suspense, useState } from 'react'
 import {
   Box,
   Flex,
@@ -22,14 +17,30 @@ import {
   Avatar,
   HStack,
   Container,
+  Center,
+  Spinner,
   useDisclosure,
 } from '@chakra-ui/react'
 import { useAuth } from '../../hooks/useAuth'
 import { Wordmark } from '../ui/Wordmark'
 import { AccountModal } from '../Account/AccountModal'
 
-// CalendarTab is implemented in src/components/Calendar/CalendarTab.tsx
-// MapTab (live Leaflet map) is implemented in src/components/Map/MapTab.tsx
+// Each tab is code-split: its JS (incl. Leaflet for the map) only loads when the
+// tab is first opened, keeping the initial bundle small. `isLazy` on <Tabs>
+// ensures panels mount on demand, which triggers these dynamic imports.
+const CalendarTab = lazy(() => import('../Calendar/CalendarTab'))
+const MapTab = lazy(() => import('../Map/MapTab'))
+const ChatTab = lazy(() => import('../Chat/ChatTab'))
+const FriendsTab = lazy(() => import('../Friends/FriendsTab'))
+const TeamsTab = lazy(() => import('../Team/TeamsTab'))
+
+function TabFallback() {
+  return (
+    <Center py={20}>
+      <Spinner color="primary.500" thickness="3px" />
+    </Center>
+  )
+}
 
 export function MainLayout() {
   const { user, profile, signOut } = useAuth()
@@ -142,19 +153,29 @@ export function MainLayout() {
         <Container as="main" maxW="6xl" px={{ base: 4, md: 6 }} py={{ base: 5, md: 8 }}>
           <TabPanels>
             <TabPanel p={0}>
-              <CalendarTab />
+              <Suspense fallback={<TabFallback />}>
+                <CalendarTab />
+              </Suspense>
             </TabPanel>
             <TabPanel p={0}>
-              <MapTab />
+              <Suspense fallback={<TabFallback />}>
+                <MapTab />
+              </Suspense>
             </TabPanel>
             <TabPanel p={0}>
-              <ChatTab />
+              <Suspense fallback={<TabFallback />}>
+                <ChatTab />
+              </Suspense>
             </TabPanel>
             <TabPanel p={0}>
-              <FriendsTab />
+              <Suspense fallback={<TabFallback />}>
+                <FriendsTab />
+              </Suspense>
             </TabPanel>
             <TabPanel p={0}>
-              <TeamsTab />
+              <Suspense fallback={<TabFallback />}>
+                <TeamsTab />
+              </Suspense>
             </TabPanel>
           </TabPanels>
         </Container>
