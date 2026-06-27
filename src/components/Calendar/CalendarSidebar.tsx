@@ -44,7 +44,24 @@ interface CalendarSidebarProps {
   onToggleTeam: (teamId: string) => void
 }
 
-export function CalendarSidebar({
+// Desktop wrapper: the sidebar fixed to the left, hidden below `lg`.
+export function CalendarSidebar(props: CalendarSidebarProps) {
+  return (
+    <Box
+      w="260px"
+      flexShrink={0}
+      display={{ base: 'none', lg: 'block' }}
+      pr={6}
+      maxH={{ lg: 'calc(100dvh - 136px)' }}
+      overflowY={{ lg: 'auto' }}
+    >
+      <CalendarSidebarBody {...props} />
+    </Box>
+  )
+}
+
+// The sidebar's contents. Shared by the desktop sidebar and the mobile drawer.
+export function CalendarSidebarBody({
   anchor,
   now,
   onPickDate,
@@ -72,14 +89,7 @@ export function CalendarSidebar({
   }, [miniMonth])
 
   return (
-    <Box
-      w="260px"
-      flexShrink={0}
-      display={{ base: 'none', lg: 'block' }}
-      pr={6}
-      maxH={{ lg: 'calc(100dvh - 136px)' }}
-      overflowY={{ lg: 'auto' }}
-    >
+    <Box>
       <Button
         variant="signal"
         leftIcon={<AddIcon boxSize={3} />}
