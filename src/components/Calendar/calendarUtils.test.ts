@@ -27,6 +27,8 @@ function makeEvent(overrides: Partial<EventRow> & { startAt: string; endAt: stri
     isAllDay: overrides.isAllDay ?? false,
     eventLocation: overrides.eventLocation ?? null,
     sharingState: overrides.sharingState ?? 'team',
+    recurrence: overrides.recurrence ?? 'none',
+    recurrenceEndDate: overrides.recurrenceEndDate ?? null,
     createdAt: overrides.createdAt ?? null,
     startAt: overrides.startAt,
     endAt: overrides.endAt,
