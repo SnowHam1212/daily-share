@@ -289,6 +289,7 @@ export default function CalendarTab() {
       // 終日予定の日付は保存側で常にローカル深夜＝このTZの深夜になるため、
       // 表示は dayKeyInTZ により全閲覧者で同じ日付に揃う。
       timezone: form.timezone ?? viewerTimeZone(),
+      reminderMinutes: form.reminderMinutes,
     }
 
     const { error } = editingId

@@ -19,7 +19,7 @@ import {
 } from '@chakra-ui/react'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
-import { SHARING, RECURRENCE_LABEL, TIME_OPTIONS, viewerTimeZone, type EventForm, type SharingState } from './calendarUtils'
+import { SHARING, RECURRENCE_LABEL, TIME_OPTIONS, REMINDER_OPTIONS, viewerTimeZone, type EventForm, type SharingState } from './calendarUtils'
 
 interface EventModalProps {
   isOpen: boolean
@@ -166,6 +166,25 @@ export function EventModal({ isOpen, onClose, form, setForm, onSubmit, isEditing
                 />
               </FormControl>
             )}
+
+            <FormControl>
+              <FormLabel>リマインダー</FormLabel>
+              <Select
+                value={form.reminderMinutes === null ? '' : String(form.reminderMinutes)}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    reminderMinutes: e.target.value === '' ? null : Number(e.target.value),
+                  })
+                }
+              >
+                {REMINDER_OPTIONS.map((o) => (
+                  <option key={o.label} value={o.value === null ? '' : String(o.value)}>
+                    {o.label}
+                  </option>
+                ))}
+              </Select>
+            </FormControl>
 
             <Text fontSize="xs" color="gray.500">
               タイムゾーン: {form.timezone ?? viewerTimeZone()}
