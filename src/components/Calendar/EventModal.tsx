@@ -14,11 +14,12 @@ import {
   VStack,
   Badge,
   Switch,
+  Text,
   Input as ChakraInput,
 } from '@chakra-ui/react'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
-import { SHARING, RECURRENCE_LABEL, TIME_OPTIONS, type EventForm, type SharingState } from './calendarUtils'
+import { SHARING, RECURRENCE_LABEL, TIME_OPTIONS, viewerTimeZone, type EventForm, type SharingState } from './calendarUtils'
 
 interface EventModalProps {
   isOpen: boolean
@@ -165,6 +166,13 @@ export function EventModal({ isOpen, onClose, form, setForm, onSubmit, isEditing
                 />
               </FormControl>
             )}
+
+            <Text fontSize="xs" color="gray.500">
+              タイムゾーン: {form.timezone ?? viewerTimeZone()}
+              {form.timezone && form.timezone !== viewerTimeZone() && (
+                <> （現在のタイムゾーン: {viewerTimeZone()}）</>
+              )}
+            </Text>
           </VStack>
         </ModalBody>
 

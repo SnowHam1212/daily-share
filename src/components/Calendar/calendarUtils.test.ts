@@ -29,6 +29,7 @@ function makeEvent(overrides: Partial<EventRow> & { startAt: string; endAt: stri
     sharingState: overrides.sharingState ?? 'team',
     recurrence: overrides.recurrence ?? 'none',
     recurrenceEndDate: overrides.recurrenceEndDate ?? null,
+    timezone: overrides.timezone ?? null,
     createdAt: overrides.createdAt ?? null,
     startAt: overrides.startAt,
     endAt: overrides.endAt,

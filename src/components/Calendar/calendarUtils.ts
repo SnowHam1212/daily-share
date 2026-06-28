@@ -102,8 +102,56 @@ export function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
 }
 
-// Does the event's [start, end) range touch the given calendar day?
+// 閲覧者のIANAタイムゾーン（例: "Asia/Tokyo"）。
+export function viewerTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone
+}
+
+// instant を指定TZの暦日キー（YYYYMMDD の数値）に変換する。
+export function dayKeyInTZ(instant: Date, tz: string): number {
+  // en-CA は "YYYY-MM-DD" 形式で返る。
+  const s = new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(instant)
+  return Number(s.replace(/-/g, ''))
+}
+
+// ローカル Date の暦日キー（YYYYMMDD）。グリッドのセル日付に使う。
+function localDayKey(d: Date): number {
+  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()
+}
+
+// instant を指定TZの "YYYY-MM-DD"（日付入力用）に変換。
+export function dateInputInTZ(instant: Date, tz: string): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(instant)
+}
+
+// その予定のTZが閲覧者と異なる場合、併記用の短いラベル（例: "Tokyo"）を返す。
+export function eventTZLabel(ev: EventRow): string | null {
+  if (!ev.timezone || ev.timezone === viewerTimeZone()) return null
+  return ev.timezone.split('/').pop()?.replace(/_/g, ' ') ?? ev.timezone
+}
+
+// Does the event's range touch the given calendar day?
+// 終日予定で timezone がある場合は、その予定のTZでの暦日で判定する
+// （閲覧者のTZに関係なく、作成時に意図した日付に表示する）。
+// timezone が無いレガシー行は従来どおり瞬時で判定。
 export function overlapsDay(ev: EventRow, day: Date) {
+  if (ev.isAllDay && ev.timezone) {
+    const cell = localDayKey(day)
+    const startKey = dayKeyInTZ(new Date(ev.startAt), ev.timezone)
+    // endAt は排他的な翌日 0:00 を指すため、その暦日は含めない。
+    const endKey = dayKeyInTZ(new Date(ev.endAt), ev.timezone)
+    return startKey <= cell && cell < endKey
+  }
   const ds = startOfDay(day)
   const de = addDays(ds, 1)
   return new Date(ev.startAt) < de && new Date(ev.endAt) > ds
@@ -127,6 +175,8 @@ export interface EventForm {
   sharingState: string
   recurrence: Recurrence
   recurrenceEndDate: string
+  // 編集時に元予定のTZを引き継ぐ（新規作成時は undefined）。
+  timezone?: string
 }
 
 export const EMPTY_FORM: EventForm = {
@@ -140,6 +190,7 @@ export const EMPTY_FORM: EventForm = {
   sharingState: 'private',
   recurrence: 'none',
   recurrenceEndDate: '',
+  timezone: undefined,
 }
 
 // Local "HH:MM" (avoids the UTC shift of toISOString / getUTCHours).
@@ -153,6 +204,27 @@ function toTimeInput(d: Date) {
 export function eventToForm(ev: EventRow): EventForm {
   const start = new Date(ev.startAt)
   const end = new Date(ev.endAt)
+
+  // 終日予定で timezone があれば、そのTZでの日付を出す（別TZの閲覧者でも
+  // 作成時に意図した日付を編集できる）。レガシー行は従来どおりローカル。
+  if (ev.isAllDay && ev.timezone) {
+    const endExclusive = new Date(dateInputInTZ(end, ev.timezone))
+    const endInclusive = addDays(endExclusive, -1)
+    return {
+      name: ev.name,
+      isAllDay: true,
+      startDate: dateInputInTZ(start, ev.timezone),
+      startTime: '',
+      endDate: toDateInput(endInclusive),
+      endTime: '',
+      eventLocation: ev.eventLocation ?? '',
+      sharingState: ev.sharingState,
+      recurrence: ev.recurrence ?? 'none',
+      recurrenceEndDate: ev.recurrenceEndDate ?? '',
+      timezone: ev.timezone,
+    }
+  }
+
   const endInclusive = ev.isAllDay ? addDays(end, -1) : end
   return {
     name: ev.name,
@@ -165,6 +237,7 @@ export function eventToForm(ev: EventRow): EventForm {
     sharingState: ev.sharingState,
     recurrence: ev.recurrence ?? 'none',
     recurrenceEndDate: ev.recurrenceEndDate ?? '',
+    timezone: ev.timezone ?? undefined,
   }
 }
 

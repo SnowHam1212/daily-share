@@ -13,6 +13,7 @@ import {
   minuteToTime,
   overlapsDay,
   formatTime,
+  eventTZLabel,
   type EventRow,
   type SharingState,
 } from './calendarUtils'
@@ -328,6 +329,9 @@ export function TimeGridView({
                           {end - start > 30 && (
                             <Text fontSize="10px" fontFamily="mono" color={style.time}>
                               {formatTime(ev.startAt)}–{formatTime(ev.endAt)}
+                              {eventTZLabel(ev) && (
+                                <Text as="span" fontFamily="body"> ({eventTZLabel(ev)})</Text>
+                              )}
                             </Text>
                           )}
                         </Box>
