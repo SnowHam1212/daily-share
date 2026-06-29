@@ -177,6 +177,8 @@ export interface EventForm {
   recurrenceEndDate: string
   // 編集時に元予定のTZを引き継ぐ（新規作成時は undefined）。
   timezone?: string
+  // 開始の何分前に通知するか。null = リマインダーなし。
+  reminderMinutes: number | null
 }
 
 export const EMPTY_FORM: EventForm = {
@@ -191,6 +193,24 @@ export const EMPTY_FORM: EventForm = {
   recurrence: 'none',
   recurrenceEndDate: '',
   timezone: undefined,
+  reminderMinutes: null,
+}
+
+// リマインダーの選択肢（分）。null = なし。
+export const REMINDER_OPTIONS: { value: number | null; label: string }[] = [
+  { value: null, label: 'なし' },
+  { value: 0, label: '開始時刻' },
+  { value: 5, label: '5分前' },
+  { value: 10, label: '10分前' },
+  { value: 15, label: '15分前' },
+  { value: 30, label: '30分前' },
+  { value: 60, label: '1時間前' },
+  { value: 120, label: '2時間前' },
+  { value: 1440, label: '1日前' },
+]
+
+export function reminderLabel(min: number | null): string {
+  return REMINDER_OPTIONS.find((o) => o.value === min)?.label ?? `${min}分前`
 }
 
 // Local "HH:MM" (avoids the UTC shift of toISOString / getUTCHours).
@@ -222,6 +242,7 @@ export function eventToForm(ev: EventRow): EventForm {
       recurrence: ev.recurrence ?? 'none',
       recurrenceEndDate: ev.recurrenceEndDate ?? '',
       timezone: ev.timezone,
+      reminderMinutes: ev.reminderMinutes ?? null,
     }
   }
 
@@ -238,6 +259,7 @@ export function eventToForm(ev: EventRow): EventForm {
     recurrence: ev.recurrence ?? 'none',
     recurrenceEndDate: ev.recurrenceEndDate ?? '',
     timezone: ev.timezone ?? undefined,
+    reminderMinutes: ev.reminderMinutes ?? null,
   }
 }
 

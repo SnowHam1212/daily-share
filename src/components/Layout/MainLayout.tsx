@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import {
   Box,
   Flex,
@@ -20,11 +20,13 @@ import {
   Center,
   Spinner,
   useDisclosure,
+  useToast,
 } from '@chakra-ui/react'
 import { useAuth } from '../../hooks/useAuth'
 import { Wordmark } from '../ui/Wordmark'
 import { AccountModal } from '../Account/AccountModal'
 import { NotificationBell } from '../Notifications/NotificationBell'
+import { useEventReminders } from '../../hooks/useEventReminders'
 
 // Each tab is code-split: its JS (incl. Leaflet for the map) only loads when the
 // tab is first opened, keeping the initial bundle small. `isLazy` on <Tabs>
@@ -44,8 +46,27 @@ function TabFallback() {
 }
 
 export function MainLayout() {
-  const { user, profile, signOut } = useAuth()
+  const { user, profile, teams, signOut } = useAuth()
+  const toast = useToast()
   const [tabIndex, setTabIndex] = useState(0)
+
+  // 予定のリマインダー: アプリ起動中、通知時刻になったら知らせる。
+  const teamIds = useMemo(() => teams.map((t) => t.id), [teams])
+  useEventReminders({
+    teamIds,
+    onReminder: (ev) => {
+      toast({
+        status: 'info',
+        title: `まもなく: ${ev.name}`,
+        description: ev.isAllDay
+          ? '本日の予定'
+          : `${new Date(ev.startAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })} 開始`,
+        duration: 10000,
+        isClosable: true,
+        position: 'top-right',
+      })
+    },
+  })
   const name = profile?.displayName ?? 'ゲスト'
   const email = profile?.email ?? user?.email ?? ''
 

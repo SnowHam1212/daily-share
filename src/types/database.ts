@@ -167,6 +167,7 @@ export type Database = {
           recurrence: 'none' | 'daily' | 'weekly' | 'monthly'
           recurrenceEndDate: string | null
           timezone: string | null
+          reminderMinutes: number | null
           createdAt: string | null
         }
         Insert: {
@@ -182,6 +183,7 @@ export type Database = {
           recurrence?: 'none' | 'daily' | 'weekly' | 'monthly'
           recurrenceEndDate?: string | null
           timezone?: string | null
+          reminderMinutes?: number | null
           createdAt?: string | null
         }
         Update: {
@@ -197,6 +199,7 @@ export type Database = {
           recurrence?: 'none' | 'daily' | 'weekly' | 'monthly'
           recurrenceEndDate?: string | null
           timezone?: string | null
+          reminderMinutes?: number | null
           createdAt?: string | null
         }
         Relationships: []
