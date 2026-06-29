@@ -8,6 +8,7 @@ import {
 } from 'react'
 import type { User, Session, AuthError } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import { setSentryUser } from '../lib/sentry'
 import type { Database } from '../types/database'
 
 type Profile = Database['public']['Tables']['users']['Row']
@@ -102,6 +103,7 @@ function useProvideAuth() {
       setSession(session)
       setUser(session?.user ?? null)
       setLoading(false)
+      setSentryUser(session?.user?.id ?? null)
       fetchProfileAndTeams(session?.user?.id)
     })
 
@@ -109,6 +111,7 @@ function useProvideAuth() {
       if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true)
       setSession(session)
       setUser(session?.user ?? null)
+      setSentryUser(session?.user?.id ?? null)
       fetchProfileAndTeams(session?.user?.id)
     })
 
