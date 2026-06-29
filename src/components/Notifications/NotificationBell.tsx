@@ -19,10 +19,24 @@ import {
 import { supabase } from '../../lib/supabase'
 import { useNotifications } from '../../hooks/useNotifications'
 
+/** 予定の開始日時を短く表示する（例: 6/30 14:00）。 */
+function formatEventStart(startAt: string): string {
+  const d = new Date(startAt)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleString('ja-JP', {
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 export function NotificationBell({ userId }: { userId: string | undefined }) {
-  const { friendRequests, unreadCount, refresh } = useNotifications(userId)
+  const { friendRequests, events, unreadCount, refresh, markEventsSeen } = useNotifications(userId)
   const toast = useToast()
   const [busyId, setBusyId] = useState<string | null>(null)
+
+  const isEmpty = friendRequests.length === 0 && events.length === 0
 
   async function accept(requestId: string, name: string) {
     setBusyId(requestId)
@@ -50,7 +64,7 @@ export function NotificationBell({ userId }: { userId: string | undefined }) {
   }
 
   return (
-    <Popover placement="bottom-end" isLazy>
+    <Popover placement="bottom-end" isLazy onOpen={markEventsSeen}>
       <PopoverTrigger>
         <Box position="relative" display="inline-flex">
           <IconButton
@@ -87,7 +101,7 @@ export function NotificationBell({ userId }: { userId: string | undefined }) {
           通知
         </PopoverHeader>
         <PopoverBody px={2} py={2} maxH="360px" overflowY="auto">
-          {friendRequests.length === 0 ? (
+          {isEmpty ? (
             <Center py={8}>
               <Text fontSize="sm" color="gray.500">
                 新しい通知はありません
@@ -95,6 +109,7 @@ export function NotificationBell({ userId }: { userId: string | undefined }) {
             </Center>
           ) : (
             <VStack align="stretch" spacing={1}>
+              {/* フレンド申請（actionable） */}
               {friendRequests.map((n) => (
                 <Box key={n.requestId} px={2} py={2} borderRadius="md" _hover={{ bg: 'gray.50' }}>
                   <HStack spacing={3} align="start">
@@ -125,6 +140,36 @@ export function NotificationBell({ userId }: { userId: string | undefined }) {
                         </Button>
                       </HStack>
                     </Box>
+                  </HStack>
+                </Box>
+              ))}
+
+              {/* 新しい予定（情報通知） */}
+              {events.map((e) => (
+                <Box key={e.eventId} px={2} py={2} borderRadius="md" _hover={{ bg: 'gray.50' }}>
+                  <HStack spacing={3} align="start">
+                    <Center boxSize="32px" borderRadius="full" bg="primary.50" flexShrink={0}>
+                      <Box as="span" fontSize="md">
+                        📅
+                      </Box>
+                    </Center>
+                    <Box minW={0} flex={1}>
+                      <Text fontSize="sm" color="gray.800">
+                        <Text as="span" fontWeight="600">
+                          {e.creator.displayName}
+                        </Text>{' '}
+                        さんが予定を追加
+                      </Text>
+                      <Text fontSize="sm" color="gray.700" noOfLines={1}>
+                        {e.name}
+                      </Text>
+                      <Text fontSize="xs" color="gray.500" mt={0.5}>
+                        {formatEventStart(e.startAt)}
+                      </Text>
+                    </Box>
+                    {e.unread && (
+                      <Box boxSize="8px" borderRadius="full" bg="danger.500" mt={1} flexShrink={0} />
+                    )}
                   </HStack>
                 </Box>
               ))}
