@@ -44,18 +44,48 @@ export type Database = {
           id: string
           teamName: string
           invitationalCode: string
+          removalPolicy: string
           createdAt: string | null
         }
         Insert: {
           id?: string
           teamName: string
           invitationalCode: string
+          removalPolicy?: string
           createdAt?: string | null
         }
         Update: {
           id?: string
           teamName?: string
           invitationalCode?: string
+          removalPolicy?: string
+          createdAt?: string | null
+        }
+        Relationships: []
+      }
+      team_invitations: {
+        Row: {
+          id: string
+          teamId: string
+          inviterId: string
+          inviteeId: string
+          status: string
+          createdAt: string | null
+        }
+        Insert: {
+          id?: string
+          teamId: string
+          inviterId: string
+          inviteeId: string
+          status?: string
+          createdAt?: string | null
+        }
+        Update: {
+          id?: string
+          teamId?: string
+          inviterId?: string
+          inviteeId?: string
+          status?: string
           createdAt?: string | null
         }
         Relationships: []
@@ -241,6 +271,59 @@ export type Database = {
       }
       delete_own_account: {
         Args: Record<string, never>
+        Returns: undefined
+      }
+      list_team_members: {
+        Args: { p_team_id: string }
+        Returns: {
+          user_id: string
+          display_name: string
+          role: string
+          joined_at: string
+        }[]
+      }
+      invite_team_member: {
+        Args: { p_team_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      list_my_team_invitations: {
+        Args: Record<string, never>
+        Returns: {
+          invitation_id: string
+          team_id: string
+          team_name: string
+          inviter_id: string
+          inviter_name: string
+          created_at: string
+        }[]
+      }
+      list_team_invitations: {
+        Args: { p_team_id: string }
+        Returns: {
+          invitation_id: string
+          invitee_id: string
+          invitee_name: string
+          created_at: string
+        }[]
+      }
+      accept_team_invitation: {
+        Args: { p_invitation_id: string }
+        Returns: string
+      }
+      decline_team_invitation: {
+        Args: { p_invitation_id: string }
+        Returns: undefined
+      }
+      cancel_team_invitation: {
+        Args: { p_invitation_id: string }
+        Returns: undefined
+      }
+      remove_team_member: {
+        Args: { p_team_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      leave_team: {
+        Args: { p_team_id: string }
         Returns: undefined
       }
     }
