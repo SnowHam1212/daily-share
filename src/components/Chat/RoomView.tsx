@@ -16,6 +16,7 @@ import { ArrowUpIcon, ArrowBackIcon } from '@chakra-ui/icons'
 import { supabase } from '../../lib/supabase'
 import { useTeamMembers } from '../../hooks/useTeamMembers'
 import { RoomMembersModal } from './RoomMembersModal'
+import { computeMessageFlags, formatDateLabel, formatTime } from './roomViewUtils'
 import type { Database } from '../../types/database'
 
 type MessageRow = Database['public']['Tables']['team_messages']['Row']
@@ -25,30 +26,6 @@ type Team = Database['public']['Tables']['teams']['Row']
 const CHAT_BG = '#8cabd8'
 const MY_BUBBLE = '#8de055'
 const SEND_GREEN = '#06c755'
-
-const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
-
-function isSameDay(a: string | null, b: string | null) {
-  if (!a || !b) return false
-  const da = new Date(a)
-  const db = new Date(b)
-  return (
-    da.getFullYear() === db.getFullYear() &&
-    da.getMonth() === db.getMonth() &&
-    da.getDate() === db.getDate()
-  )
-}
-
-function formatDateLabel(iso: string | null) {
-  if (!iso) return ''
-  const d = new Date(iso)
-  return `${d.getMonth() + 1}月${d.getDate()}日(${WEEKDAYS[d.getDay()]})`
-}
-
-function formatTime(iso: string | null) {
-  if (!iso) return ''
-  return new Date(iso).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', hour12: false })
-}
 
 interface RoomViewProps {
   team: Team
@@ -76,6 +53,9 @@ export function RoomView({ team, currentUserId, onBack, onLeft }: RoomViewProps)
     () => new Map(memberState.members.map((m) => [m.userId, m.displayName])),
     [memberState.members],
   )
+
+  // 日付セパレータと連投グルーピングの判定（ロジックは roomViewUtils）。
+  const messageFlags = useMemo(() => computeMessageFlags(messages), [messages])
 
   const fetchMessages = useCallback(async (tid: string) => {
     setLoading(true)
@@ -172,10 +152,8 @@ export function RoomView({ team, currentUserId, onBack, onLeft }: RoomViewProps)
         ) : (
           <Box>
             {messages.map((m, i) => {
-              const prev = messages[i - 1]
               const mine = m.userId === currentUserId
-              const showDate = !prev || !isSameDay(prev.createdAt, m.createdAt)
-              const startGroup = showDate || !prev || prev.userId !== m.userId
+              const { showDate, startGroup } = messageFlags[i]
               const time = (
                 <Text fontSize="10px" color="blackAlpha.600" flexShrink={0} pb="2px">
                   {formatTime(m.createdAt)}
