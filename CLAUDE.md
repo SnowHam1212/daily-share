@@ -43,8 +43,11 @@ Schema defined in `supabase/migrations/0001_init.sql`. Key tables:
 | Table | Purpose |
 |---|---|
 | `users` | Linked to `auth.users` via trigger on signup |
-| `teams` | Groups with unique `invitationalCode` |
+| `teams` | Groups with unique `invitationalCode` and `removalPolicy` |
 | `user_teams` | Many-to-many with `role` (admin/member) |
+| `team_invitations` | Team invites awaiting the invitee's consent |
+| `team_messages` | Talk room messages; deleted after 30 days |
+| `friend_requests` | Friend requests awaiting approval |
 | `user_friends` | Bidirectional friendship pairs |
 | `events` | Calendar events scoped to team with `sharingState` |
 | `locations` | One row per user, updated in-place; Realtime enabled |
@@ -53,14 +56,28 @@ Schema defined in `supabase/migrations/0001_init.sql`. Key tables:
 
 RLS is enabled on all tables. Auth trigger `handle_new_user()` auto-inserts into `public.users` on signup.
 
+### Team membership rules (`0012`)
+
+`user_teams` の RLS は自分の行しか見えないため、メンバー一覧・招待・追放・退出はすべて `SECURITY DEFINER` の RPC 経由で行う（`list_team_members` / `invite_team_member` / `accept_team_invitation` / `remove_team_member` / `leave_team` など）。
+
+- **参加は必ず本人の同意が要る。** 他人を直接 `user_teams` へ入れる関数は無い。招待を出し、招待された本人が承諾して初めて参加する
+- 例外は招待コード参加（`join_team_by_code`）。本人がコードを入力する操作なので同意済みとみなす
+- 誰が他メンバーを追放できるかは `teams."removalPolicy"`（`admin_only` / `anyone` / `nobody`）で決まる。チーム作成時に決定し、あとから変更する導線は無い
+- `is_team_member` / `is_team_admin` は内部ヘルパで、`authenticated` から `REVOKE` 済み（membership oracle を防ぐため）。**新しい RPC を足すときも GRANT しないこと**
+
+### Migrations
+
+番号のプレフィックスが Supabase の履歴テーブルの主キーになるため、**番号を重複させないこと**。過去に `0007` と `0008` が重複し、片方が履歴に記録されず `db push` が通らなくなった（`0013` / `0014` へリナンバーして解消）。
+
 ## GitHub Workflows
 
 ### CI (`ci.yml`)
 
-`pull_request` to `main` でトリガー。`frontend/` ディレクトリを作業ディレクトリとして Lint → Build を実行。
-> 注意: CI の `working-directory` が `frontend` になっているが、現状リポジトリルートに直接ソースがある。CI が失敗する場合はこの設定を確認すること。
+`pull_request` to `main` でトリガー。リポジトリルートで Install → Lint → Build → Test を実行する。
 
-テストステップはコメントアウト済み（追加時に有効化）。
+テストは `npm test`（`vitest run --project unit`）。現状テストファイルは `src/components/Calendar/calendarUtils.test.ts` の 1 本のみで、認証・RLS・チーム権限のテストは無い。
+
+バックエンド用ジョブは `ci.yml` にコメントアウトで雛形が残っている（バックエンド導入時に有効化）。
 
 ### Issue テンプレート
 
@@ -77,4 +94,6 @@ RLS is enabled on all tables. Auth trigger `handle_new_user()` auto-inserts into
 
 ## Environment
 
-Copy `.env.example` to `.env` and fill in your Supabase project URL and anon key.
+Copy `.env.example` to **`.env.local`** and fill in your Supabase project URL and anon key.
+
+> **`.env` ではなく `.env.local` を使うこと。** `.env` は過去に追跡されており（`4d6f8ea` で untrack）、古いブランチ 26 本が今も `.env` をツリーに持っている。gitignore は「切替先のコミットが追跡しているファイル」を守れないため、それらのブランチと `main` を `git checkout` で行き来すると**ディスク上の `.env` が消える**。`.env.local` はどのブランチも追跡していないので、この問題が起きない。Vite は `.env.local` を優先して読むため設定変更は不要。
