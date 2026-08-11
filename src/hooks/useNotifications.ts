@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { fetchPublicProfiles } from '../lib/profiles'
 
 export interface FriendRequestNotification {
   requestId: string
-  requester: { id: string; displayName: string; email: string }
+  // 他人について保持してよいのは公開情報（表示名）だけ（0018）。
+  requester: { id: string; displayName: string }
   createdAt: string | null
 }
 
@@ -37,21 +39,16 @@ export function useNotifications(userId: string | undefined) {
         setFriendRequests([])
         return
       }
-      const ids = rows.map((r) => r.requesterId)
-      const { data: users } = await supabase
-        .from('users')
-        .select('id, displayName, email')
-        .in('id', ids)
-      const byId = new Map((users ?? []).map((u) => [u.id, u]))
+      // 申請者の表示名は公開情報の RPC から引く（0018）。
+      const names = await fetchPublicProfiles(rows.map((r) => r.requesterId))
 
       setFriendRequests(
         rows.map((r) => ({
           requestId: r.id,
           createdAt: r.createdAt,
-          requester: byId.get(r.requesterId) ?? {
+          requester: {
             id: r.requesterId,
-            displayName: '不明なユーザー',
-            email: '',
+            displayName: names.get(r.requesterId) ?? '不明なユーザー',
           },
         })),
       )
