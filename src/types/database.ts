@@ -277,6 +277,18 @@ export type Database = {
         Args: { code: string }
         Returns: string
       }
+      get_public_profiles: {
+        Args: { p_ids: string[] }
+        Returns: { id: string; display_name: string }[]
+      }
+      search_users: {
+        Args: { p_query: string }
+        Returns: { id: string; display_name: string }[]
+      }
+      list_my_teammates: {
+        Args: Record<string, never>
+        Returns: { id: string; display_name: string }[]
+      }
       list_team_members: {
         Args: { p_team_id: string }
         Returns: {
