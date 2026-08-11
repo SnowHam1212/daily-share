@@ -10,6 +10,7 @@ import {
   Badge,
   Avatar,
   Input,
+  Select,
   IconButton,
   Spinner,
   Center,
@@ -20,6 +21,7 @@ import {
 import { CopyIcon, AddIcon } from '@chakra-ui/icons'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { useMyTeamInvitations } from '../../hooks/useMyTeamInvitations'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import type { Database } from '../../types/database'
@@ -119,11 +121,9 @@ function TeamCard({
     if (!currentUserId) return
     setLeaving(true)
     try {
-      const { error } = await supabase
-        .from('user_teams')
-        .delete()
-        .eq('teamId', team.id)
-        .eq('userId', currentUserId)
+      // user_teams を直接消すと「最後の1人が抜けて孤児チームが残る」ため
+      // 後片付けまで面倒を見る RPC を通す（0012）。
+      const { error } = await supabase.rpc('leave_team', { p_team_id: team.id })
       if (error) {
         toast({ status: 'error', title: '脱退できませんでした', description: error.message })
         return
@@ -201,11 +201,94 @@ function TeamCard({
   )
 }
 
+/**
+ * 自分宛に届いているチーム招待。承諾するまでチームには参加しない。
+ * 招待が無いときは何も描画しない。
+ */
+function InvitationsCard({ onAccepted }: { onAccepted: () => Promise<void> | void }) {
+  const { invitations, loading, accept, decline } = useMyTeamInvitations()
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const toast = useToast()
+
+  if (loading || invitations.length === 0) return null
+
+  async function handleAccept(invitationId: string, teamName: string) {
+    setBusyId(invitationId)
+    try {
+      const { error } = await accept(invitationId)
+      if (error) {
+        toast({ status: 'error', title: '参加できませんでした', description: error })
+        return
+      }
+      toast({ status: 'success', title: `「${teamName}」に参加しました` })
+      await onAccepted()
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function handleDecline(invitationId: string, teamName: string) {
+    setBusyId(invitationId)
+    try {
+      const { error } = await decline(invitationId)
+      if (error) {
+        toast({ status: 'error', title: '操作できませんでした', description: error })
+        return
+      }
+      toast({ status: 'info', title: `「${teamName}」の招待を辞退しました` })
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  return (
+    <Card>
+      <Heading size="sm" mb={3}>
+        届いている招待（{invitations.length}）
+      </Heading>
+      <VStack align="stretch" spacing={3}>
+        {invitations.map((inv) => (
+          <HStack key={inv.invitationId} spacing={3} wrap="wrap">
+            <Avatar size="sm" name={inv.teamName} bg="primary.500" color="white" />
+            <Box flex={1} minW="140px">
+              <Text fontSize="sm" fontWeight="semibold" color="gray.900" noOfLines={1}>
+                {inv.teamName}
+              </Text>
+              <Text fontSize="xs" color="gray.500" noOfLines={1}>
+                {inv.inviterName} さんからの招待
+              </Text>
+            </Box>
+            <HStack spacing={2} flexShrink={0}>
+              <Button
+                size="sm"
+                variant="signal"
+                isLoading={busyId === inv.invitationId}
+                onClick={() => handleAccept(inv.invitationId, inv.teamName)}
+              >
+                参加する
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                isDisabled={busyId === inv.invitationId}
+                onClick={() => handleDecline(inv.invitationId, inv.teamName)}
+              >
+                辞退
+              </Button>
+            </HStack>
+          </HStack>
+        ))}
+      </VStack>
+    </Card>
+  )
+}
+
 export default function TeamsTab() {
   const { user, teams, refreshProfile } = useAuth()
   const toast = useToast()
 
   const [teamName, setTeamName] = useState('')
+  const [removalPolicy, setRemovalPolicy] = useState('admin_only')
   const [inviteCode, setInviteCode] = useState('')
   const [creating, setCreating] = useState(false)
   const [joining, setJoining] = useState(false)
@@ -221,7 +304,7 @@ export default function TeamsTab() {
       const code = Math.random().toString(36).slice(2, 8)
       const { data: teamData, error: teamError } = await supabase
         .from('teams')
-        .insert([{ teamName: teamName.trim(), invitationalCode: code } as TeamInsert])
+        .insert([{ teamName: teamName.trim(), invitationalCode: code, removalPolicy } as TeamInsert])
         .select()
         .single()
       if (teamError || !teamData) {
@@ -237,6 +320,7 @@ export default function TeamsTab() {
       }
       toast({ status: 'success', title: `「${teamData.teamName}」を作成しました` })
       setTeamName('')
+      setRemovalPolicy('admin_only')
       await refreshProfile()
     } finally {
       setCreating(false)
@@ -294,28 +378,49 @@ export default function TeamsTab() {
         </Text>
       </Box>
 
+      <InvitationsCard onAccepted={refreshProfile} />
+
       <Stack direction={{ base: 'column', md: 'row' }} spacing={4}>
         <Card flex={1}>
           <Heading size="sm" mb={3}>
             新しいチームを作成
           </Heading>
-          <HStack>
-            <Input
-              placeholder="チーム名"
-              value={teamName}
-              onChange={(e) => setTeamName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-            />
-            <Button
-              variant="signal"
-              leftIcon={<AddIcon boxSize={3} />}
-              onClick={handleCreate}
-              isLoading={creating}
-              flexShrink={0}
-            >
-              作成
-            </Button>
-          </HStack>
+          <VStack align="stretch" spacing={3}>
+            <HStack>
+              <Input
+                placeholder="チーム名"
+                value={teamName}
+                onChange={(e) => setTeamName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+              />
+              <Button
+                variant="signal"
+                leftIcon={<AddIcon boxSize={3} />}
+                onClick={handleCreate}
+                isLoading={creating}
+                flexShrink={0}
+              >
+                作成
+              </Button>
+            </HStack>
+            <Box>
+              <Text fontSize="xs" fontWeight="bold" color="gray.500" letterSpacing="wide" mb={1}>
+                メンバーを退出させられる人
+              </Text>
+              <Select
+                size="sm"
+                value={removalPolicy}
+                onChange={(e) => setRemovalPolicy(e.target.value)}
+              >
+                <option value="admin_only">管理者のみ</option>
+                <option value="anyone">メンバー全員</option>
+                <option value="nobody">誰も退出させられない</option>
+              </Select>
+              <Text fontSize="xs" color="gray.400" mt={1}>
+                作成後は変更できません。各自が自分で脱退することは、どの設定でもできます。
+              </Text>
+            </Box>
+          </VStack>
         </Card>
 
         <Card flex={1}>

@@ -8,6 +8,12 @@
 --
 -- NOTE: renamed from 0004 (which collided with 0004_team_messages_retention) and
 -- made idempotent so it is safe to (re)apply regardless of current DB state.
+--
+-- NOTE: renumbered again 0007 -> 0013. It collided with 0007_join_team_by_code,
+-- and Supabase's migration history keys on the version prefix, so only one of the
+-- two could ever be recorded. The contents were already applied to production out
+-- of band (locations."sharedTeamIds" exists there); this renumber only fixes the
+-- bookkeeping. Re-applying is a no-op thanks to the idempotent statements above.
 -- ============================================================
 
 ALTER TABLE locations
