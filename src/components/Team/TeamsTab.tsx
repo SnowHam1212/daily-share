@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   Box,
   Flex,
@@ -22,6 +22,7 @@ import { CopyIcon, AddIcon } from '@chakra-ui/icons'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { useMyTeamInvitations } from '../../hooks/useMyTeamInvitations'
+import { useTeamMembers } from '../../hooks/useTeamMembers'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import type { Database } from '../../types/database'
@@ -29,12 +30,6 @@ import type { Database } from '../../types/database'
 type Team = Database['public']['Tables']['teams']['Row']
 type TeamInsert = Database['public']['Tables']['teams']['Insert']
 type UserTeamInsert = Database['public']['Tables']['user_teams']['Insert']
-
-type Member = {
-  userId: string
-  role: string
-  displayName: string
-}
 
 function InviteCode({ code }: { code: string }) {
   const { hasCopied, onCopy } = useClipboard(code)
@@ -77,43 +72,12 @@ function TeamCard({
   currentUserId: string | undefined
   onLeft: () => void
 }) {
-  const [members, setMembers] = useState<Member[]>([])
-  const [loading, setLoading] = useState(true)
+  // user_teams を直接引いてはいけない。user_teams_select（0001）は自分の行しか
+  // 返さないため、他のメンバーが見えない。SECURITY DEFINER の list_team_members
+  // 経由で取得する（0012）。
+  const { members, loading } = useTeamMembers(team.id)
   const [leaving, setLeaving] = useState(false)
   const toast = useToast()
-
-  const fetchMembers = useCallback(async () => {
-    setLoading(true)
-    try {
-      const { data: rows, error } = await supabase
-        .from('user_teams')
-        .select('userId, role')
-        .eq('teamId', team.id)
-      if (error || !rows) {
-        setMembers([])
-        return
-      }
-      const ids = rows.map((r) => r.userId)
-      const { data: users } = await supabase
-        .from('users')
-        .select('id, displayName')
-        .in('id', ids)
-      const nameById = new Map((users ?? []).map((u) => [u.id, u.displayName]))
-      setMembers(
-        rows.map((r) => ({
-          userId: r.userId,
-          role: r.role,
-          displayName: nameById.get(r.userId) ?? '不明なユーザー',
-        })),
-      )
-    } finally {
-      setLoading(false)
-    }
-  }, [team.id])
-
-  useEffect(() => {
-    fetchMembers()
-  }, [fetchMembers])
 
   const myRole = members.find((m) => m.userId === currentUserId)?.role
 
