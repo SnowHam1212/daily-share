@@ -18,8 +18,21 @@ npm run build-storybook # Build Storybook static site
 ```bash
 npx supabase start                          # Start local Supabase
 npx supabase gen types --lang=typescript --local > src/types/database.ts  # Regenerate DB types
+npx supabase db push --dry-run              # 適用対象を確認（必ず先に実行する）
 npx supabase db push                        # Apply migrations to remote
 ```
+
+> ## ⚠️ マイグレーションを本番に適用する前に必ず読む
+>
+> **`db push` は対応するコードがマージ・デプロイされた後に行うこと。**
+>
+> 2026-08-11、PR を出す前に本番へ適用して**本番を壊した**（チーム作成が不能、フレンド名が出ない、地図のピンが消える）。DB とフロントエンドは「どのテーブルをどう読み書きするか」の契約で結ばれており、片方だけ動かせば必ず壊れる。
+>
+> 古いコードが動かなくなる変更（RLS の厳格化、ポリシー削除、列の削除）は **①新経路を足す → ②コードを切り替えてデプロイ → ③古い経路を塞ぐ** の3段階に分ける。①と③を同時にやると壊れる。
+>
+> 手順・影響範囲の洗い方・過去の事故は **[docs/migration-deploy-runbook.md](docs/migration-deploy-runbook.md)** に集約してある。RLS やポリシーを触る前に必ず目を通すこと。
+>
+> **マイグレーション番号は絶対に重複させない。** 過去に `0007` / `0008` が重複し、片方が「適用済み」と記録されたまま中身が本番に入らず、招待コード参加が長期間壊れていた。
 
 ## Architecture
 
