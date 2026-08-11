@@ -273,6 +273,10 @@ export type Database = {
         Args: Record<string, never>
         Returns: undefined
       }
+      join_team_by_code: {
+        Args: { code: string }
+        Returns: string
+      }
       list_team_members: {
         Args: { p_team_id: string }
         Returns: {

@@ -335,31 +335,21 @@ export default function TeamsTab() {
     }
     setJoining(true)
     try {
-      const { data: teamData, error: teamError } = await supabase
-        .from('teams')
-        .select('*')
-        .eq('invitationalCode', inviteCode.trim())
-        .maybeSingle()
-      if (teamError) {
-        toast({ status: 'error', title: '検索に失敗しました', description: teamError.message })
+      // teams を直接検索してはいけない。teams_select（0001）は自分が所属する
+      // チームしか返さないため、参加前は必ず 0 件になる。検索と参加をまとめて
+      // 行う SECURITY DEFINER の RPC を使う（0015）。
+      const { data: joinedTeamId, error } = await supabase.rpc('join_team_by_code', {
+        code: inviteCode.trim(),
+      })
+      if (error) {
+        toast({ status: 'error', title: '参加できませんでした', description: error.message })
         return
       }
-      if (!teamData) {
-        toast({ status: 'error', title: '招待コードが存在しません' })
-        return
-      }
-      if (teams.some((t) => t.id === teamData.id)) {
-        toast({ status: 'info', title: 'すでに参加しているチームです' })
-        return
-      }
-      const { error: utError } = await supabase
-        .from('user_teams')
-        .insert([{ userId: user.id, teamId: teamData.id, role: 'member' } as UserTeamInsert])
-      if (utError) {
-        toast({ status: 'error', title: '参加に失敗しました', description: utError.message })
-        return
-      }
-      toast({ status: 'success', title: `「${teamData.teamName}」に参加しました` })
+      const already = teams.some((t) => t.id === joinedTeamId)
+      toast({
+        status: already ? 'info' : 'success',
+        title: already ? 'すでに参加しているチームです' : 'チームに参加しました',
+      })
       setInviteCode('')
       await refreshProfile()
     } finally {
