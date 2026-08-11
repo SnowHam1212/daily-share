@@ -289,6 +289,10 @@ export type Database = {
         Args: Record<string, never>
         Returns: { id: string; display_name: string }[]
       }
+      create_team: {
+        Args: { p_team_name: string; p_removal_policy?: string }
+        Returns: { id: string; team_name: string; invitational_code: string }[]
+      }
       list_team_members: {
         Args: { p_team_id: string }
         Returns: {
