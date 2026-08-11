@@ -26,12 +26,6 @@ import type { Database } from '../../types/database'
 type TeamInsert = Database['public']['Tables']['teams']['Insert']
 type UserTeamInsert = Database['public']['Tables']['user_teams']['Insert']
 
-type JoinResult = {
-  id: string
-  teamName: string
-  invitationalCode: string
-  createdAt: string | null
-}
 
 export function TeamSetup() {
   const { user, refreshProfile } = useAuth()
@@ -95,28 +89,15 @@ export function TeamSetup() {
 
     setIsJoining(true)
     try {
-      const { data: teamData, error: teamError } = await supabase
-        .from('teams')
-        .select('*')
-        .eq('invitationalCode', invitationalCode.trim())
-        .maybeSingle() as { data: JoinResult | null; error: { message: string } | null }
+      // teams を直接検索してはいけない。teams_select（0001）は自分が所属する
+      // チームしか返さないため、参加前は必ず 0 件になる。検索と参加をまとめて
+      // 行う SECURITY DEFINER の RPC を使う（0015）。
+      const { error } = await supabase.rpc('join_team_by_code', {
+        code: invitationalCode.trim(),
+      })
 
-      if (teamError) {
-        setJoinError(teamError.message)
-        return
-      }
-
-      if (!teamData) {
-        setJoinError('招待コードが存在しません')
-        return
-      }
-
-      const { error: utError } = await supabase
-        .from('user_teams')
-        .insert([{ userId: user.id, teamId: teamData.id, role: 'member' } as UserTeamInsert])
-
-      if (utError) {
-        setJoinError(utError.message)
+      if (error) {
+        setJoinError(error.message)
         return
       }
 
