@@ -23,6 +23,7 @@ import {
   FormLabel,
 } from '@chakra-ui/react'
 import { supabase } from '../../lib/supabase'
+import { fetchPublicProfiles } from '../../lib/profiles'
 import { useAuth } from '../../hooks/useAuth'
 import { useRealtimeLocations } from '../../hooks/useRealtime'
 import { MapPin } from './MapPin'
@@ -161,20 +162,15 @@ export default function MapTab() {
       setMemberNames(new Map())
       return
     }
-    const { data: rows } = await supabase
-      .from('user_teams')
-      .select('userId')
-      .in('teamId', teamIds)
-    const ids = Array.from(new Set((rows ?? []).map((r) => r.userId)))
-    if (ids.length === 0) {
+    // user_teams を直接引かない。user_teams_select は自分の行しか返さないため
+    // チームメイトを集められない。所属チームをまたいだ一覧を RPC で取る（0018）。
+    const { data, error } = await supabase.rpc('list_my_teammates')
+    if (error) {
+      console.error('list_my_teammates error', error)
       setMemberNames(new Map())
       return
     }
-    const { data: users } = await supabase
-      .from('users')
-      .select('id, displayName')
-      .in('id', ids)
-    setMemberNames(new Map((users ?? []).map((u) => [u.id, u.displayName])))
+    setMemberNames(new Map((data ?? []).map((u) => [u.id, u.display_name])))
   }, [teamIds])
 
   const fetchFriends = useCallback(async () => {
@@ -191,11 +187,8 @@ export default function MapTab() {
       setFriendNames(new Map())
       return
     }
-    const { data: users } = await supabase
-      .from('users')
-      .select('id, displayName')
-      .in('id', ids)
-    setFriendNames(new Map((users ?? []).map((u) => [u.id, u.displayName])))
+    // 他人の表示名は公開情報の RPC から引く（0018）。
+    setFriendNames(await fetchPublicProfiles(ids))
   }, [user])
 
   // displayName for anyone we're allowed to see (teammates + friends).

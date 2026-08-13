@@ -15,10 +15,13 @@ import {
 } from '@chakra-ui/react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { fetchPublicProfiles, searchUsers } from '../../lib/profiles'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 
-type Person = { id: string; displayName: string; email: string }
+// 他人について保持してよいのは公開情報（表示名）だけ。
+// メールアドレスはクライアントへ渡さない（0018）。
+type Person = { id: string; displayName: string }
 type RequestItem = { requestId: string; person: Person }
 
 export default function FriendsTab() {
@@ -62,15 +65,13 @@ export default function FriendsTab() {
           ...outgoingRaw.map((r) => r.addresseeId),
         ]),
       )
-      const people = new Map<string, Person>()
-      if (ids.length > 0) {
-        const { data: users } = await supabase
-          .from('users')
-          .select('id, displayName, email')
-          .in('id', ids)
-        for (const u of users ?? []) people.set(u.id, u)
-      }
-      const get = (id: string): Person => people.get(id) ?? { id, displayName: '不明なユーザー', email: '' }
+      // users を直接引かない。他人の行は見えず、そもそも表示名以外を
+      // クライアントへ渡さないため RPC 経由にしている（0018）。
+      const names = await fetchPublicProfiles(ids)
+      const get = (id: string): Person => ({
+        id,
+        displayName: names.get(id) ?? '不明なユーザー',
+      })
 
       setFriends(friendIds.map(get))
       setIncoming(incomingRaw.map((r) => ({ requestId: r.id, person: get(r.requesterId) })))
@@ -91,19 +92,15 @@ export default function FriendsTab() {
     }
     setSearching(true)
     try {
-      const q = `%${query.trim()}%`
-      const { data } = await supabase
-        .from('users')
-        .select('id, displayName, email')
-        .or(`displayName.ilike.${q},email.ilike.${q}`)
-        .neq('id', user.id)
-        .limit(10)
+      // 表示名は部分一致、メールアドレスは完全一致（サーバ側で制限）。
+      // 検索結果に連絡先は含まれない（0018）。
+      const found = await searchUsers(query)
       const excluded = new Set([
         ...friends.map((f) => f.id),
         ...incoming.map((i) => i.person.id),
         ...outgoing.map((o) => o.person.id),
       ])
-      setResults((data ?? []).filter((u) => !excluded.has(u.id)))
+      setResults(found.filter((u) => !excluded.has(u.id)))
     } finally {
       setSearching(false)
     }
@@ -186,11 +183,9 @@ export default function FriendsTab() {
             <Text fontSize="sm" fontWeight="600" color="gray.800" noOfLines={1}>
               {person.displayName}
             </Text>
-            {person.email && (
-              <Text fontSize="xs" color="gray.500" noOfLines={1}>
-                {person.email}
-              </Text>
-            )}
+            {/* メールアドレスは表示しない。他人の連絡先はクライアントへ
+                渡さない方針のため（0018）。同名の相手を見分ける手段は
+                @ユーザー名の導入で別途検討する。 */}
           </Box>
         </HStack>
         <HStack spacing={2} flexShrink={0}>

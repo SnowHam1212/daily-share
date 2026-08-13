@@ -28,6 +28,7 @@ import {
 } from '@chakra-ui/react'
 import { CopyIcon, CloseIcon, AddIcon } from '@chakra-ui/icons'
 import { supabase } from '../../lib/supabase'
+import { fetchPublicProfiles } from '../../lib/profiles'
 import type { useTeamMembers } from '../../hooks/useTeamMembers'
 import { Button } from '../ui/Button'
 
@@ -96,8 +97,9 @@ export function RoomMembersModal({
       .eq('userId', currentUserId)
     const ids = (rows ?? []).map((r) => r.friendId)
     if (ids.length === 0) return setFriends([])
-    const { data: users } = await supabase.from('users').select('id, displayName').in('id', ids)
-    setFriends((users ?? []).map((u) => ({ id: u.id, displayName: u.displayName })))
+    // 他人の表示名は公開情報の RPC から引く（0018）。
+    const names = await fetchPublicProfiles(ids)
+    setFriends(ids.map((id) => ({ id, displayName: names.get(id) ?? '不明なユーザー' })))
   }, [currentUserId])
 
   useEffect(() => {

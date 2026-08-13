@@ -2,10 +2,6 @@ import { useState } from 'react'
 import { Button, Input, VStack, Text } from '@chakra-ui/react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import type { Database } from '../../types/database'
-
-type TeamInsert = Database['public']['Tables']['teams']['Insert']
-type UserTeamInsert = Database['public']['Tables']['user_teams']['Insert']
 
 export function TeamSetup() {
   const { user, refreshProfile } = useAuth()
@@ -21,25 +17,13 @@ export function TeamSetup() {
     }
     setLoading(true)
     try {
-      const invitationalCode = Math.random().toString(36).slice(2, 8)
-      const { data: teamData, error: teamError } = await supabase
-        .from('teams')
-        .insert([{ teamName: teamName.trim(), invitationalCode } as TeamInsert])
-        .select()
-        .single()
+      // 作成と admin 登録を1トランザクションで行う RPC を使う（0019）。
+      const { error: rpcError } = await supabase.rpc('create_team', {
+        p_team_name: teamName.trim(),
+      })
 
-      if (teamError || !teamData) {
-        setError(teamError?.message ?? 'チーム作成に失敗しました')
-        setLoading(false)
-        return
-      }
-
-      const { error: utError } = await supabase
-        .from('user_teams')
-        .insert([{ userId: user.id, teamId: teamData.id, role: 'admin' } as UserTeamInsert])
-
-      if (utError) {
-        setError(utError.message)
+      if (rpcError) {
+        setError(rpcError.message)
         setLoading(false)
         return
       }

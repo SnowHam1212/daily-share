@@ -28,8 +28,6 @@ import { Card } from '../ui/Card'
 import type { Database } from '../../types/database'
 
 type Team = Database['public']['Tables']['teams']['Row']
-type TeamInsert = Database['public']['Tables']['teams']['Insert']
-type UserTeamInsert = Database['public']['Tables']['user_teams']['Insert']
 
 function InviteCode({ code }: { code: string }) {
   const { hasCopied, onCopy } = useClipboard(code)
@@ -265,24 +263,19 @@ export default function TeamsTab() {
     }
     setCreating(true)
     try {
-      const code = Math.random().toString(36).slice(2, 8)
-      const { data: teamData, error: teamError } = await supabase
-        .from('teams')
-        .insert([{ teamName: teamName.trim(), invitationalCode: code, removalPolicy } as TeamInsert])
-        .select()
-        .single()
-      if (teamError || !teamData) {
-        toast({ status: 'error', title: 'チーム作成に失敗しました', description: teamError?.message })
+      // teams へ直接 INSERT してはいけない。.select() が生成する RETURNING は
+      // SELECT ポリシーの影響を受けるが、作成の瞬間はまだメンバーではないため
+      // 行が返らない。作成と admin 登録を1トランザクションで行う RPC を使う（0019）。
+      const { data, error } = await supabase.rpc('create_team', {
+        p_team_name: teamName.trim(),
+        p_removal_policy: removalPolicy,
+      })
+      if (error) {
+        toast({ status: 'error', title: 'チーム作成に失敗しました', description: error.message })
         return
       }
-      const { error: utError } = await supabase
-        .from('user_teams')
-        .insert([{ userId: user.id, teamId: teamData.id, role: 'admin' } as UserTeamInsert])
-      if (utError) {
-        toast({ status: 'error', title: 'メンバー登録に失敗しました', description: utError.message })
-        return
-      }
-      toast({ status: 'success', title: `「${teamData.teamName}」を作成しました` })
+      const created = data?.[0]
+      toast({ status: 'success', title: `「${created?.team_name ?? teamName.trim()}」を作成しました` })
       setTeamName('')
       setRemovalPolicy('admin_only')
       await refreshProfile()
