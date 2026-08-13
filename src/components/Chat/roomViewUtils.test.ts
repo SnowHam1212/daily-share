@@ -4,6 +4,8 @@ import {
   formatDateLabel,
   formatTime,
   computeMessageFlags,
+  isNearBottom,
+  BOTTOM_THRESHOLD_PX,
   type MessageLike,
 } from './roomViewUtils'
 
@@ -69,6 +71,38 @@ describe('formatTime', () => {
 
   it('null は空文字', () => {
     expect(formatTime(null)).toBe('')
+  })
+})
+
+describe('isNearBottom', () => {
+  // scrollHeight 1000, clientHeight 400 → 最下部は scrollTop 600
+  it('ぴったり最下部なら true', () => {
+    expect(isNearBottom(600, 1000, 400)).toBe(true)
+  })
+
+  it('しきい値ちょうど手前なら true', () => {
+    expect(isNearBottom(600 - BOTTOM_THRESHOLD_PX, 1000, 400)).toBe(true)
+  })
+
+  it('しきい値を1px超えて離れていたら false', () => {
+    expect(isNearBottom(600 - BOTTOM_THRESHOLD_PX - 1, 1000, 400)).toBe(false)
+  })
+
+  it('大きく遡っていたら false', () => {
+    expect(isNearBottom(0, 1000, 400)).toBe(false)
+  })
+
+  it('内容が画面に収まりきる場合は true（スクロールできないため）', () => {
+    expect(isNearBottom(0, 300, 400)).toBe(true)
+  })
+
+  it('高さが同じ場合も true', () => {
+    expect(isNearBottom(0, 400, 400)).toBe(true)
+  })
+
+  it('しきい値を指定できる', () => {
+    expect(isNearBottom(500, 1000, 400, 100)).toBe(true)
+    expect(isNearBottom(500, 1000, 400, 50)).toBe(false)
   })
 })
 
