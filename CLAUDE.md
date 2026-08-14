@@ -116,7 +116,7 @@ Copy `.env.example` to **`.env.local`** and fill in your Supabase project URL an
 `src/lib/sentry.ts` で初期化し、`App.tsx` の `Sentry.ErrorBoundary` で描画クラッシュを捕捉する。収集対象は**未捕捉例外のみ**（トレース・リプレイは `tracesSampleRate: 0` で無効）。
 
 - **`VITE_SENTRY_DSN` を設定したときだけ有効。** 未設定ならビルドから SDK の初期化ごと除去され no-op になるため、ローカル開発では何も設定しなくてよい
-- `release` と `environment` は `vite.config.ts` が `VERCEL_GIT_COMMIT_SHA` / `VERCEL_ENV` から `define` でバンドルへ埋め込む。**ソースマップのアップロード時に使う release と同じ値を使うこと**（食い違うと本番のスタックトレースが復元されない）
+- `release` と `environment` は `vite.config.ts` が `VERCEL_GIT_COMMIT_SHA` / `VERCEL_ENV` から `define` でバンドルへ埋め込む。`Sentry.init` に `release: undefined` を渡すと、プラグインが注入した `__SENTRY_RELEASE__` を上書きしてイベントに release が付かなくなるので注意（ソースマップの突き合わせ自体は debug ID で行われるため release とは独立）
 - ユーザー識別は `setSentryUser` で **ID のみ**。メール等の PII は送らない（`sendDefaultPii: false`）
 - **`supabase.from(...)` の失敗は届かない。** エラーを throw せず戻り値で返すため、拾いたい箇所に `Sentry.captureException` を足す必要がある
 

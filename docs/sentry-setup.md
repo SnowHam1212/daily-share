@@ -107,20 +107,21 @@ Sentry → **Alerts → Create Alert → Issues**
 
 ### アップロードの失敗はデプロイを止めない
 
-**上のどれかを間違えても、Vercel のデプロイは成功する。** `vite.config.ts` で `errorHandler` を渡しているため、アップロードの失敗は警告だけでビルドは通る（監視の設定ミスでアプリを出せなくなる方が損失が大きいため、意図的にそうしている）。
+**上のどれかを間違えても、Vercel のデプロイは成功する。** アップロードの失敗はログに出るだけでビルドは通る（実測で確認済み。`errorHandler` を渡していない状態でも終了コードは 0 だった）。`vite.config.ts` の `errorHandler` は、その失敗を読みやすい 1 行に置き換えているだけで、成功・失敗の分岐を変えるものではない。
 
 裏を返すと、**失敗しても気づけない。** 必ず次のどれかで確認する。
 
-- Vercel の Build Logs に `[sentry-vite-plugin] ソースマップのアップロードに失敗しました` が出ていないか
+- Vercel の Build Logs に `[sentry-vite-plugin]` の失敗行（`ソースマップのアップロードに失敗しました` / `Couldn't finish all operations`）が出ていないか
 - Sentry → **Releases** に commit SHA の release があり、artifacts が 0 件でないか
 - 手順 4 のテストエラーをもう一度出し、スタックトレースに `src/...` の TSX の行と前後のコードが出るか
 
 ### ソースマップ自体は公開されない
 
-`.map` は元コードそのものなので、公開ディレクトリに残すと誰でもソースを読める。二重に対策してある。
+`.map` は元コードそのものなので、公開ディレクトリに残すと誰でもソースを読める。三重に対策してある。
 
-- `build.sourcemap: 'hidden'` — `.map` は作るが、バンドルに `sourceMappingURL` コメントを埋め込まない（ブラウザが勝手に取得しない）。Sentry は debug ID で突き合わせるため影響しない
-- ビルドの最後に `dist` 配下の `.map` を必ず削除する（`deleteLeftoverSourcemaps` プラグイン）。アップロードが失敗した場合も残らない
+- `sentryVitePlugin` の `filesToDeleteAfterUpload` が `./dist/**/*.map` を削除する。**アップロードが失敗した場合も削除される**（実測確認済み）
+- `build.sourcemap: 'hidden'` — `.map` は作るが、バンドルに `sourceMappingURL` コメントを埋め込まない。Sentry は debug ID で突き合わせるため復元には影響せず、削除済みの `.map` を DevTools が取りに行って 404 になることも無くなる
+- `deleteLeftoverSourcemaps` プラグインがビルドの最後に `.map` を消す。上の `filesToDeleteAfterUpload` は `./dist` 決め打ちなので、出力先を変えたときに漏れる。その保険
 
 ---
 
@@ -164,7 +165,8 @@ Sentry → **Alerts → Create Alert → Issues**
 | スタックトレースが読めない | ソースマップ未設定（手順 6） |
 | デプロイは成功したのにスタックトレースが読めない | アップロードだけ失敗している（失敗してもビルドは通る仕様）。Vercel の Build Logs で `[sentry-vite-plugin]` の警告を確認する。`SENTRY_ORG` / `SENTRY_PROJECT` の登録漏れ、トークンのスコープ不足（`project:releases` が必要）が典型 |
 | release が付かない／`unknown` | Vercel 以外でビルドしている。`VITE_SENTRY_RELEASE` を明示的に渡す |
-| ソースマップを上げたのに復元されない | ビルド時の release と実行時の release が食い違っている。両方 `vite.config.ts` の同じ値から決まるので、通常は起きない。手で `VITE_SENTRY_RELEASE` を設定した場合は値を揃える |
+| ソースマップを上げたのに復元されない | 突き合わせは release ではなく **debug ID** で行われるため、release の食い違いが原因ではない。アップロード自体が失敗している可能性が高いので Build Logs を見る |
+| Issues に release が付かない（Releases に artifacts はあるのに紐付かない） | 実行時に `release` を渡していない。`vite.config.ts` の `define` した値を `src/lib/sentry.ts` が読む構成になっているか確認する（`release: undefined` を明示的に渡すと、プラグインが注入した `__SENTRY_RELEASE__` を上書きしてしまう） |
 | Preview のエラーが煩わしい | `VITE_SENTRY_DSN` を Production 限定にする、または Sentry 側で `environment:production` のフィルタ／アラート条件を使う |
 
 ---

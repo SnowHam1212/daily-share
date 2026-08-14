@@ -35,9 +35,9 @@ const uploadSourcemaps = Boolean(sentryAuthToken && sentryOrg && sentryProject);
  *
  * ソースマップは**元コードそのもの**なので、公開ディレクトリに残すと
  * 誰でもアプリのソースを読める。sentryVitePlugin の
- * `filesToDeleteAfterUpload` はアップロードが成功したときだけ動くため、
- * トークン不正・ネットワーク断で失敗すると `.map` が dist に残り、
- * そのまま本番へデプロイされてしまう。その取りこぼしを塞ぐ。
+ * `filesToDeleteAfterUpload` は失敗時にも削除してくれるが、パスが
+ * `./dist` 決め打ちなので、出力先を変えると（`--outDir` 等）取りこぼす。
+ * その保険として、実際の出力先を見て確実に消す。
  *
  * `closeBundle` は全プラグインの `writeBundle`（Sentry のアップロードは
  * ここで走る）が終わったあとに呼ばれるので、アップロードを邪魔しない。
@@ -82,12 +82,11 @@ export default defineConfig({
             project: sentryProject,
             release: sentryRelease ? { name: sentryRelease } : undefined,
             sourcemaps: { filesToDeleteAfterUpload: ['./dist/**/*.map'] },
-            // **アップロードの失敗でデプロイを落とさない。** 既定では
-            // throw してビルドを止めるため、トークンの期限切れ・スコープ
-            // 不足・スラッグ違いといった監視側の設定ミスで、アプリの
-            // デプロイごと失敗する。それより警告に留めて出す方が安全。
-            // 上がったかどうかは Sentry の Releases で確認する
-            // （docs/sentry-setup.md 手順 6）。
+            // アップロードの失敗を読みやすい 1 行に置き換える。既定でも
+            // ビルドは通る（実測: 失敗しても終了コードは 0）ので、これは
+            // 挙動を変えるものではなく、長いスタックトレースに埋もれて
+            // 見落とすのを防ぐためのもの。上がったかどうかは Sentry の
+            // Releases で確認する（docs/sentry-setup.md 手順 6）。
             errorHandler: (err) => {
               console.warn(
                 '[sentry-vite-plugin] ソースマップのアップロードに失敗しました（ビルドは継続します）:',
