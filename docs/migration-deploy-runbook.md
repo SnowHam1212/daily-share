@@ -140,6 +140,25 @@ done
 
 一度履歴に記録された番号は再適用されない。**新しい番号で入れ直すしかない**（`0015` がその対応）。
 
+**被害は1件とは限らない。** 重複した番号の数だけ取りこぼしがある。実際 `0008` でも同じことが起きており、`0008_event_timezone.sql` の `events.timezone` 列が本番に存在しないまま長期間放置されていた。
+
+- 症状: 予定の追加・編集が全ユーザーで失敗し `Could not find the 'timezone' column of 'events' in the schema cache` が返る
+- 閲覧（`select *`）と削除は列名を指定しないので動くため、**「予定は見えるのに追加も編集もできない」**という分かりにくい壊れ方をする
+- ローカルは `db reset` で全ファイルが走るため**再現しない**。本番だけで起きる
+- 対応は `0020_restore_event_timezone.sql`
+
+**番号重複を解消したら、重複していた側の中身が本番に入っているかを列・関数レベルで必ず確認すること。** リナンバーしただけでは本番は直らない。関数は上の「5. RPC の存在確認」で、列は本番に対して直接引く。
+
+```sql
+-- 期待する列が本当にあるか
+select column_name from information_schema.columns
+where table_schema = 'public' and table_name = 'events'
+order by ordinal_position;
+
+-- 履歴に記録されている番号（ここに載っている番号は二度と再適用されない）
+select version from supabase_migrations.schema_migrations order by version;
+```
+
 ---
 
 ## 参考: 現在の設計
