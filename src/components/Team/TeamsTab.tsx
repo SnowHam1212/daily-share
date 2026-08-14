@@ -19,11 +19,12 @@ import {
   useToast,
 } from '@chakra-ui/react'
 import { avatarColor } from '../../lib/avatarColor'
-import { CopyIcon, AddIcon } from '@chakra-ui/icons'
+import { CopyIcon, AddIcon, LinkIcon } from '@chakra-ui/icons'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { useMyTeamInvitations } from '../../hooks/useMyTeamInvitations'
 import { useTeamMembers } from '../../hooks/useTeamMembers'
+import { buildInviteUrl } from '../../lib/inviteLink'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import type { Database } from '../../types/database'
@@ -32,33 +33,54 @@ type Team = Database['public']['Tables']['teams']['Row']
 
 function InviteCode({ code }: { code: string }) {
   const { hasCopied, onCopy } = useClipboard(code)
+  // リンクを渡せば、相手はタップするだけで参加できる（#100）。
+  // コードの手入力より確実なので、リンクの方を主導線にする。
+  const inviteUrl = buildInviteUrl(window.location.origin, code)
+  const { hasCopied: linkCopied, onCopy: onCopyLink } = useClipboard(inviteUrl)
+
   return (
-    <HStack spacing={2}>
-      <Box
-        fontFamily="mono"
-        fontSize="sm"
-        fontWeight="700"
-        bg="gray.100"
-        px={2}
-        py={1}
-        borderRadius="md"
-        letterSpacing="wide"
-      >
-        {code}
-      </Box>
-      <IconButton
-        aria-label="招待コードをコピー"
-        icon={<CopyIcon />}
-        size="sm"
-        variant="ghost"
-        onClick={onCopy}
-      />
-      {hasCopied && (
-        <Text fontSize="xs" color="signal.600">
-          コピーしました
+    <VStack align="stretch" spacing={2}>
+      <HStack spacing={2}>
+        <Button
+          size="sm"
+          variant="signal"
+          leftIcon={<LinkIcon boxSize={3} />}
+          onClick={onCopyLink}
+          flexShrink={0}
+        >
+          {linkCopied ? 'コピーしました' : '招待リンクをコピー'}
+        </Button>
+      </HStack>
+      <HStack spacing={2}>
+        <Text fontSize="xs" color="gray.500" flexShrink={0}>
+          コード
         </Text>
-      )}
-    </HStack>
+        <Box
+          fontFamily="mono"
+          fontSize="sm"
+          fontWeight="700"
+          bg="gray.100"
+          px={2}
+          py={1}
+          borderRadius="md"
+          letterSpacing="wide"
+        >
+          {code}
+        </Box>
+        <IconButton
+          aria-label="招待コードをコピー"
+          icon={<CopyIcon />}
+          size="sm"
+          variant="ghost"
+          onClick={onCopy}
+        />
+        {hasCopied && (
+          <Text fontSize="xs" color="signal.600">
+            コピーしました
+          </Text>
+        )}
+      </HStack>
+    </VStack>
   )
 }
 
