@@ -1,9 +1,10 @@
 /// <reference types="vitest/config" />
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { sentryVitePlugin } from '@sentry/vite-plugin';
 
 // https://vite.dev/config/
+import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { storybookTest } from '@storybook/addon-vitest/vitest-plugin';
@@ -29,6 +30,44 @@ const sentryEnvironment = process.env.VITE_SENTRY_ENVIRONMENT || process.env.VER
 // プラグインを差し込まず、ソースマップも生成しない（ビルドは壊れない）。
 const uploadSourcemaps = Boolean(sentryAuthToken && sentryOrg && sentryProject);
 
+/**
+ * ビルド出力に残った `.map` を必ず削除する。
+ *
+ * ソースマップは**元コードそのもの**なので、公開ディレクトリに残すと
+ * 誰でもアプリのソースを読める。sentryVitePlugin の
+ * `filesToDeleteAfterUpload` はアップロードが成功したときだけ動くため、
+ * トークン不正・ネットワーク断で失敗すると `.map` が dist に残り、
+ * そのまま本番へデプロイされてしまう。その取りこぼしを塞ぐ。
+ *
+ * `closeBundle` は全プラグインの `writeBundle`（Sentry のアップロードは
+ * ここで走る）が終わったあとに呼ばれるので、アップロードを邪魔しない。
+ */
+function deleteLeftoverSourcemaps(): Plugin {
+  let outDir = '';
+  return {
+    name: 'delete-leftover-sourcemaps',
+    apply: 'build',
+    configResolved(config) {
+      outDir = path.resolve(config.root, config.build.outDir);
+    },
+    async closeBundle() {
+      let entries: string[];
+      try {
+        entries = await fs.readdir(outDir, { recursive: true });
+      } catch {
+        return; // 出力が無い（ライブラリビルド等）ときは何もしない
+      }
+      const maps = entries.filter((entry) => entry.endsWith('.map'));
+      await Promise.all(maps.map((map) => fs.rm(path.join(outDir, map), { force: true })));
+      if (maps.length > 0) {
+        console.warn(
+          `[sourcemaps] アップロードされずに残った .map を ${maps.length} 件削除しました（公開防止）`,
+        );
+      }
+    },
+  };
+}
+
 // More info at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon
 export default defineConfig({
   plugins: [
@@ -43,7 +82,21 @@ export default defineConfig({
             project: sentryProject,
             release: sentryRelease ? { name: sentryRelease } : undefined,
             sourcemaps: { filesToDeleteAfterUpload: ['./dist/**/*.map'] },
+            // **アップロードの失敗でデプロイを落とさない。** 既定では
+            // throw してビルドを止めるため、トークンの期限切れ・スコープ
+            // 不足・スラッグ違いといった監視側の設定ミスで、アプリの
+            // デプロイごと失敗する。それより警告に留めて出す方が安全。
+            // 上がったかどうかは Sentry の Releases で確認する
+            // （docs/sentry-setup.md 手順 6）。
+            errorHandler: (err) => {
+              console.warn(
+                '[sentry-vite-plugin] ソースマップのアップロードに失敗しました（ビルドは継続します）:',
+                err.message,
+              );
+            },
           }),
+          // 取りこぼした .map を最後に必ず消す（Sentry プラグインより後）。
+          deleteLeftoverSourcemaps(),
         ]
       : []),
   ],
@@ -53,9 +106,12 @@ export default defineConfig({
     __SENTRY_RELEASE__: JSON.stringify(sentryRelease),
     __SENTRY_ENVIRONMENT__: JSON.stringify(sentryEnvironment),
   },
-  // ソースマップはアップロードする時だけ生成する。
+  // ソースマップはアップロードする時だけ生成する。'hidden' は .map を作るが
+  // バンドルに sourceMappingURL コメントを埋め込まない = ブラウザが勝手に
+  // 取りに行かない。Sentry は debug ID で突き合わせるため影響しない
+  // （Sentry 推奨の設定）。
   build: {
-    sourcemap: uploadSourcemaps,
+    sourcemap: uploadSourcemaps ? 'hidden' : false,
   },
   test: {
     projects: [{

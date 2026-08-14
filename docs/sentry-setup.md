@@ -101,11 +101,26 @@ Sentry → **Alerts → Create Alert → Issues**
 | `SENTRY_ORG` | 組織スラッグ | Sentry の URL に出る |
 | `SENTRY_PROJECT` | `daily-share` | プロジェクトスラッグ |
 
+**`SENTRY_ORG` と `SENTRY_PROJECT` も必ず登録すること。** `vite.config.ts` にハードコードしていないので、3 つ揃わないとアップロード処理ごとスキップされる（トークンだけでは何も起きない）。
+
 3. 再デプロイする
 
-3 つ揃ったビルドだけソースマップを生成・アップロードし、アップロード後に `.map` を削除する（公開ディレクトリに残さない）。1 つでも欠けていればプラグインごとスキップされ、ビルドは壊れない。
+### アップロードの失敗はデプロイを止めない
 
-確認方法: 手順 4 のテストエラーをもう一度出し、スタックトレースに `src/...` の TSX の行が出ていれば成功。
+**上のどれかを間違えても、Vercel のデプロイは成功する。** `vite.config.ts` で `errorHandler` を渡しているため、アップロードの失敗は警告だけでビルドは通る（監視の設定ミスでアプリを出せなくなる方が損失が大きいため、意図的にそうしている）。
+
+裏を返すと、**失敗しても気づけない。** 必ず次のどれかで確認する。
+
+- Vercel の Build Logs に `[sentry-vite-plugin] ソースマップのアップロードに失敗しました` が出ていないか
+- Sentry → **Releases** に commit SHA の release があり、artifacts が 0 件でないか
+- 手順 4 のテストエラーをもう一度出し、スタックトレースに `src/...` の TSX の行と前後のコードが出るか
+
+### ソースマップ自体は公開されない
+
+`.map` は元コードそのものなので、公開ディレクトリに残すと誰でもソースを読める。二重に対策してある。
+
+- `build.sourcemap: 'hidden'` — `.map` は作るが、バンドルに `sourceMappingURL` コメントを埋め込まない（ブラウザが勝手に取得しない）。Sentry は debug ID で突き合わせるため影響しない
+- ビルドの最後に `dist` 配下の `.map` を必ず削除する（`deleteLeftoverSourcemaps` プラグイン）。アップロードが失敗した場合も残らない
 
 ---
 
@@ -147,6 +162,7 @@ Sentry → **Alerts → Create Alert → Issues**
 |---|---|
 | Issues に何も来ない | ①再デプロイしていない（`VITE_` はビルド時埋め込み） ②DSN の対象環境が Production になっていない ③広告ブロッカーが送信をブロック |
 | スタックトレースが読めない | ソースマップ未設定（手順 6） |
+| デプロイは成功したのにスタックトレースが読めない | アップロードだけ失敗している（失敗してもビルドは通る仕様）。Vercel の Build Logs で `[sentry-vite-plugin]` の警告を確認する。`SENTRY_ORG` / `SENTRY_PROJECT` の登録漏れ、トークンのスコープ不足（`project:releases` が必要）が典型 |
 | release が付かない／`unknown` | Vercel 以外でビルドしている。`VITE_SENTRY_RELEASE` を明示的に渡す |
 | ソースマップを上げたのに復元されない | ビルド時の release と実行時の release が食い違っている。両方 `vite.config.ts` の同じ値から決まるので、通常は起きない。手で `VITE_SENTRY_RELEASE` を設定した場合は値を揃える |
 | Preview のエラーが煩わしい | `VITE_SENTRY_DSN` を Production 限定にする、または Sentry 側で `environment:production` のフィルタ／アラート条件を使う |
