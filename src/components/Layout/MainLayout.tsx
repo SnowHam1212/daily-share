@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useCallback, useState } from 'react'
 import {
   Box,
   Flex,
@@ -22,6 +22,7 @@ import {
   useDisclosure,
 } from '@chakra-ui/react'
 import { useAuth } from '../../hooks/useAuth'
+import { useRedeemPendingInvite } from '../../hooks/usePendingInvite'
 import { Wordmark } from '../ui/Wordmark'
 import { AccountModal } from '../Account/AccountModal'
 import { NotificationBell } from '../Notifications/NotificationBell'
@@ -35,6 +36,9 @@ const ChatTab = lazy(() => import('../Chat/ChatTab'))
 const FriendsTab = lazy(() => import('../Friends/FriendsTab'))
 const TeamsTab = lazy(() => import('../Team/TeamsTab'))
 
+/** タブの並び順（カレンダー・地図・トーク・フレンド・チーム）における「トーク」。 */
+const TALK_TAB_INDEX = 2
+
 function TabFallback() {
   return (
     <Center py={20}>
@@ -44,10 +48,18 @@ function TabFallback() {
 }
 
 export function MainLayout() {
-  const { user, profile, signOut } = useAuth()
+  const { user, profile, signOut, refreshProfile } = useAuth()
   const [tabIndex, setTabIndex] = useState(0)
   const name = profile?.displayName ?? 'ゲスト'
   const email = profile?.email ?? user?.email ?? ''
+
+  // 招待リンク（/join/:code）で来た場合、ここで参加する。
+  // 参加後はトークタブへ移し、入ったルームがすぐ見えるようにする。
+  const handleJoinedByInvite = useCallback(async () => {
+    await refreshProfile()
+    setTabIndex(TALK_TAB_INDEX)
+  }, [refreshProfile])
+  useRedeemPendingInvite(user?.id, handleJoinedByInvite)
 
   const account = useDisclosure()
   const [accountTab, setAccountTab] = useState(0)

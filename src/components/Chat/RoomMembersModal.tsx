@@ -26,9 +26,10 @@ import {
   useClipboard,
   useToast,
 } from '@chakra-ui/react'
-import { CopyIcon, CloseIcon, AddIcon } from '@chakra-ui/icons'
+import { CopyIcon, CloseIcon, AddIcon, LinkIcon } from '@chakra-ui/icons'
 import { supabase } from '../../lib/supabase'
 import { fetchPublicProfiles } from '../../lib/profiles'
+import { buildInviteUrl } from '../../lib/inviteLink'
 import type { useTeamMembers } from '../../hooks/useTeamMembers'
 import { Button } from '../ui/Button'
 
@@ -74,6 +75,9 @@ export function RoomMembersModal({
     team
   const toast = useToast()
   const { hasCopied, onCopy } = useClipboard(invitationalCode)
+  const { hasCopied: linkCopied, onCopy: onCopyLink } = useClipboard(
+    buildInviteUrl(window.location.origin, invitationalCode),
+  )
   const [busyId, setBusyId] = useState<string | null>(null)
   const [confirm, setConfirm] = useState<Confirm>(null)
   const [confirming, setConfirming] = useState(false)
@@ -199,9 +203,23 @@ export function RoomMembersModal({
             <VStack align="stretch" spacing={4}>
               <Box>
                 <Text fontSize="xs" fontWeight="bold" color="gray.500" letterSpacing="wide" mb={1}>
-                  招待コード
+                  このルームに招待する
                 </Text>
+                {/* リンクを渡せば相手はタップするだけで参加できる（#100）。
+                    コードの手入力より確実なので、リンクを主導線にする。 */}
+                <Button
+                  size="sm"
+                  variant="signal"
+                  leftIcon={<LinkIcon boxSize={3} />}
+                  onClick={onCopyLink}
+                  mb={2}
+                >
+                  {linkCopied ? 'コピーしました' : '招待リンクをコピー'}
+                </Button>
                 <HStack spacing={2}>
+                  <Text fontSize="xs" color="gray.500" flexShrink={0}>
+                    コード
+                  </Text>
                   <Box
                     fontFamily="mono"
                     fontSize="sm"
