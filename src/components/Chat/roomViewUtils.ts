@@ -37,6 +37,30 @@ export function formatTime(iso: string | null) {
   })
 }
 
+/**
+ * 「最下部付近にいる」とみなす余白（px）。
+ * ぴったり最下部でなくても追従してほしいので、少し余裕を持たせる。
+ */
+export const BOTTOM_THRESHOLD_PX = 80
+
+/**
+ * スクロール位置が最下部付近かどうか。
+ *
+ * 新着メッセージで自動スクロールしてよいかの判定に使う。
+ * 過去を遡って読んでいる最中に最下部へ飛ばされると読書が中断されるため、
+ * 最下部付近にいるときだけ追従する。
+ */
+export function isNearBottom(
+  scrollTop: number,
+  scrollHeight: number,
+  clientHeight: number,
+  threshold: number = BOTTOM_THRESHOLD_PX,
+) {
+  // 内容が画面に収まりきる場合（スクロールできない場合）は残り距離が
+  // 0 以下になるため、この式だけで「最下部にいる」と判定される。
+  return scrollHeight - (scrollTop + clientHeight) <= threshold
+}
+
 /** フラグ計算に必要な最小限のメッセージ形。 */
 export interface MessageLike {
   userId: string
