@@ -21,6 +21,8 @@ import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { SHARING, RECURRENCE_LABEL, TIME_OPTIONS, viewerTimeZone, type EventForm, type SharingState } from './calendarUtils'
 
+type ModalTeam = { id: string; teamName: string }
+
 interface EventModalProps {
   isOpen: boolean
   onClose: () => void
@@ -28,10 +30,25 @@ interface EventModalProps {
   setForm: (f: EventForm) => void
   onSubmit: () => void
   isEditing?: boolean
+  teams?: ModalTeam[]
+  isSaving?: boolean
 }
 
-export function EventModal({ isOpen, onClose, form, setForm, onSubmit, isEditing }: EventModalProps) {
+// 保存先の <option> の値。空文字は個人（teamId = null）。
+const PERSONAL_VALUE = ''
+
+export function EventModal({
+  isOpen,
+  onClose,
+  form,
+  setForm,
+  onSubmit,
+  isEditing,
+  teams = [],
+  isSaving,
+}: EventModalProps) {
   const sharing = SHARING[form.sharingState as SharingState] ?? SHARING.private
+  const isPersonal = form.teamId === null
   return (
     <Modal isOpen={isOpen} onClose={onClose} isCentered>
       <ModalOverlay bg="blackAlpha.500" backdropFilter="blur(2px)" />
@@ -124,6 +141,31 @@ export function EventModal({ isOpen, onClose, form, setForm, onSubmit, isEditing
               />
             </FormControl>
 
+            {teams.length > 0 && (
+              <FormControl>
+                <FormLabel>保存先</FormLabel>
+                <Select
+                  value={form.teamId ?? PERSONAL_VALUE}
+                  onChange={(e) => {
+                    const teamId = e.target.value === PERSONAL_VALUE ? null : e.target.value
+                    setForm({
+                      ...form,
+                      teamId,
+                      // 個人の予定はチームには出ないので、公開範囲もそろえる。
+                      sharingState: teamId === null ? 'private' : form.sharingState,
+                    })
+                  }}
+                >
+                  <option value={PERSONAL_VALUE}>個人（自分のカレンダー）</option>
+                  {teams.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.teamName}
+                    </option>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+
             <FormControl>
               <FormLabel>
                 公開範囲{' '}
@@ -133,12 +175,18 @@ export function EventModal({ isOpen, onClose, form, setForm, onSubmit, isEditing
               </FormLabel>
               <Select
                 value={form.sharingState}
+                isDisabled={isPersonal}
                 onChange={(e) => setForm({ ...form, sharingState: e.target.value })}
               >
                 <option value="private">自分のみ</option>
                 <option value="friends">友だち</option>
                 <option value="team">チーム</option>
               </Select>
+              {isPersonal && (
+                <Text fontSize="xs" color="gray.500" mt={1}>
+                  個人の予定は自分だけが見られます。
+                </Text>
+              )}
             </FormControl>
 
             <FormControl>
@@ -183,7 +231,9 @@ export function EventModal({ isOpen, onClose, form, setForm, onSubmit, isEditing
           <Button
             variant="signal"
             onClick={onSubmit}
-            isDisabled={!form.name || !form.startDate || (!form.isAllDay && !form.startTime)}
+            isLoading={isSaving}
+            loadingText={isEditing ? '保存中' : '作成中'}
+            isDisabled={!form.name.trim() || !form.startDate || (!form.isAllDay && !form.startTime)}
           >
             {isEditing ? '保存する' : '作成する'}
           </Button>

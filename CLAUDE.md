@@ -62,7 +62,7 @@ Schema defined in `supabase/migrations/0001_init.sql`. Key tables:
 | `team_messages` | Talk room messages; deleted after 30 days |
 | `friend_requests` | Friend requests awaiting approval |
 | `user_friends` | Bidirectional friendship pairs |
-| `events` | Calendar events scoped to team with `sharingState` |
+| `events` | Calendar events. `teamId` が NULL なら作成者だけの個人予定（`0020`）。外部カレンダーから取り込んだ行は `externalUid` を持つ |
 | `locations` | One row per user, updated in-place; Realtime enabled |
 
 `sharing_state` enum: `'private' | 'friends' | 'team'` — used in both `events` and `locations`.

@@ -20,11 +20,20 @@ import {
   Spinner,
   Center,
 } from '@chakra-ui/react'
-import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, RepeatIcon, HamburgerIcon, AddIcon } from '@chakra-ui/icons'
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ChevronDownIcon,
+  RepeatIcon,
+  HamburgerIcon,
+  AddIcon,
+  DownloadIcon,
+} from '@chakra-ui/icons'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { Button } from '../ui/Button'
 import { EventModal } from './EventModal'
+import { ImportModal } from './ImportModal'
 import { TimeGridView } from './TimeGridView'
 import { MonthView } from './MonthView'
 import { CalendarSidebar, CalendarSidebarBody } from './CalendarSidebar'
@@ -32,6 +41,7 @@ import {
   EMPTY_FORM,
   eventToForm,
   eventsForRange,
+  formToEventValues,
   startOfWeek,
   startOfDay,
   addDays,
@@ -39,7 +49,6 @@ import {
   monthGridDays,
   toDateInput,
   minuteToTime,
-  viewerTimeZone,
   type CalendarView,
   type EventForm,
   type EventRow,
@@ -65,10 +74,12 @@ export default function CalendarTab() {
   const { isOpen, onOpen, onClose } = useDisclosure()
   // Mobile drawer that hosts the sidebar (create / mini-calendar / filters).
   const mobileNav = useDisclosure()
+  const importer = useDisclosure()
   const toast = useToast()
   const [form, setForm] = useState<EventForm>(EMPTY_FORM)
   // id of the event being edited; null when creating a new one
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
 
   function closeModal() {
     setEditingId(null)
@@ -76,6 +87,13 @@ export default function CalendarTab() {
   }
 
   const teamIds = useMemo(() => teams.map((t) => t.id), [teams])
+  // 新規作成の既定の保存先。チームに入っていなければ個人（null）。
+  const defaultTeamId = teams.length > 0 ? teams[0].id : null
+
+  // 新規作成用の空フォーム。
+  function blankForm(overrides?: Partial<EventForm>): EventForm {
+    return { ...EMPTY_FORM, teamId: defaultTeamId, ...overrides }
+  }
 
   // The date range currently visible, depending on the view.
   const [rangeStart, rangeEnd] = useMemo<[Date, Date]>(() => {
@@ -97,25 +115,26 @@ export default function CalendarTab() {
 
   // `silent` re-fetches without the full-grid spinner (used by the 更新 button).
   async function fetchEvents(opts?: { silent?: boolean }) {
-    if (!teamIds || teamIds.length === 0) return setEvents([])
+    if (!user) return setEvents([])
     if (opts?.silent) setRefreshing(true)
     else setLoading(true)
     try {
       // (1) Non-recurring events (and recurring masters) overlapping the range.
       // (2) Recurring masters that started before the range but recur into it.
       // Merge + de-dupe; occurrences are expanded client-side via eventsForRange.
+      //
+      // チームでの絞り込みはしない。RLS（events_select）が「自分の個人予定 ＋
+      // 所属チームの予定」だけを返すので、チーム未所属でも個人予定が見える。
       const [inRange, recurringMasters] = await Promise.all([
         supabase
           .from('events')
           .select('*')
-          .in('teamId', teamIds)
           .lt('startAt', rangeEnd.toISOString())
           .gt('endAt', rangeStart.toISOString())
           .order('startAt', { ascending: true }),
         supabase
           .from('events')
           .select('*')
-          .in('teamId', teamIds)
           .neq('recurrence', 'none')
           .lt('startAt', rangeEnd.toISOString()),
       ])
@@ -144,7 +163,10 @@ export default function CalendarTab() {
   const visibleEvents = useMemo(
     () =>
       eventsForRange(events, rangeStart, rangeEnd).filter(
-        (e) => filters.has(e.sharingState as SharingState) && !hiddenTeams.has(e.teamId),
+        (e) =>
+          filters.has(e.sharingState as SharingState) &&
+          // 個人予定（teamId なし）はチームの絞り込み対象外。
+          (e.teamId === null || !hiddenTeams.has(e.teamId)),
       ),
     [events, filters, hiddenTeams, rangeStart, rangeEnd],
   )
@@ -210,7 +232,7 @@ export default function CalendarTab() {
 
   function openBlank() {
     setEditingId(null)
-    setForm(EMPTY_FORM)
+    setForm(blankForm())
     onOpen()
   }
 
@@ -218,20 +240,21 @@ export default function CalendarTab() {
     const dateStr = toDateInput(day)
     const endMinute = minute + 60
     setEditingId(null)
-    setForm({
-      ...EMPTY_FORM,
-      startDate: dateStr,
-      startTime: minuteToTime(minute),
-      endDate: dateStr,
-      endTime: endMinute <= 24 * 60 ? minuteToTime(endMinute) : '',
-    })
+    setForm(
+      blankForm({
+        startDate: dateStr,
+        startTime: minuteToTime(minute),
+        endDate: dateStr,
+        endTime: endMinute <= 24 * 60 ? minuteToTime(endMinute) : '',
+      }),
+    )
     onOpen()
   }
 
   function openAllDay(day: Date) {
     const dateStr = toDateInput(day)
     setEditingId(null)
-    setForm({ ...EMPTY_FORM, isAllDay: true, startDate: dateStr, endDate: dateStr })
+    setForm(blankForm({ isAllDay: true, startDate: dateStr, endDate: dateStr }))
     onOpen()
   }
 
@@ -251,49 +274,19 @@ export default function CalendarTab() {
       toast({ status: 'error', title: 'ログインが必要です' })
       return
     }
-    if (!teams || teams.length === 0) {
-      toast({
-        status: 'warning',
-        title: 'チームに参加していません',
-        description: '予定を追加するにはチームへの参加が必要です。',
-      })
+
+    // チームに入っていなくても予定は作れる（teamId = null の個人予定になる）。
+    const result = formToEventValues(form)
+    if (!result.ok) {
+      toast({ status: 'error', title: result.error })
       return
     }
 
-    let start: Date
-    let end: Date
-    if (form.isAllDay) {
-      start = new Date(`${form.startDate}T00:00`)
-      const endBase = new Date(`${form.endDate || form.startDate}T00:00`)
-      end = new Date(endBase.getTime() + 24 * 60 * 60 * 1000)
-    } else {
-      start = new Date(`${form.startDate}T${form.startTime}`)
-      const endRaw = new Date(`${form.endDate || form.startDate}T${form.endTime}`)
-      end = isNaN(endRaw.getTime()) ? new Date(start.getTime() + 60 * 60 * 1000) : endRaw
-    }
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      toast({ status: 'error', title: '日時が正しくありません' })
-      return
-    }
-
-    const values = {
-      name: form.name,
-      startAt: start.toISOString(),
-      endAt: end.toISOString(),
-      isAllDay: form.isAllDay,
-      eventLocation: form.eventLocation || null,
-      sharingState: form.sharingState as SharingState,
-      recurrence: form.recurrence,
-      recurrenceEndDate: form.recurrence !== 'none' && form.recurrenceEndDate ? form.recurrenceEndDate : null,
-      // 編集時は元のTZを引き継ぎ、新規・未設定なら閲覧者のTZを記録する。
-      // 終日予定の日付は保存側で常にローカル深夜＝このTZの深夜になるため、
-      // 表示は dayKeyInTZ により全閲覧者で同じ日付に揃う。
-      timezone: form.timezone ?? viewerTimeZone(),
-    }
-
+    setSaving(true)
     const { error } = editingId
-      ? await supabase.from('events').update(values).eq('id', editingId)
-      : await supabase.from('events').insert({ ...values, createdBy: user.id, teamId: teams[0].id })
+      ? await supabase.from('events').update(result.values).eq('id', editingId)
+      : await supabase.from('events').insert({ ...result.values, createdBy: user.id })
+    setSaving(false)
 
     if (error) {
       console.error('save event error', error)
@@ -307,7 +300,7 @@ export default function CalendarTab() {
       return
     }
 
-    setForm(EMPTY_FORM)
+    setForm(blankForm())
     closeModal()
     fetchEvents()
   }
@@ -375,6 +368,21 @@ export default function CalendarTab() {
           <HStack spacing={2}>
             <Button
               variant="secondary"
+              leftIcon={<DownloadIcon />}
+              onClick={importer.onOpen}
+              display={{ base: 'none', md: 'inline-flex' }}
+            >
+              取り込み
+            </Button>
+            <IconButton
+              aria-label="外部カレンダーから取り込む"
+              icon={<DownloadIcon />}
+              variant="secondary"
+              display={{ base: 'inline-flex', md: 'none' }}
+              onClick={importer.onOpen}
+            />
+            <Button
+              variant="secondary"
               leftIcon={<RepeatIcon />}
               onClick={handleRefresh}
               isLoading={refreshing}
@@ -435,6 +443,15 @@ export default function CalendarTab() {
         setForm={setForm}
         onSubmit={handleSubmit}
         isEditing={!!editingId}
+        teams={teams}
+        isSaving={saving}
+      />
+
+      <ImportModal
+        isOpen={importer.isOpen}
+        onClose={importer.onClose}
+        teams={teams}
+        onImported={() => fetchEvents()}
       />
 
       {/* Mobile: sidebar contents in a drawer */}
