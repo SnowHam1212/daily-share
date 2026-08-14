@@ -15,9 +15,16 @@ const dirname = typeof __dirname !== 'undefined' ? __dirname : path.dirname(file
 const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN;
 const sentryOrg = process.env.SENTRY_ORG;
 const sentryProject = process.env.SENTRY_PROJECT;
-// 実行時の release（VITE_SENTRY_RELEASE）と一致させる。Vercel では
-// VERCEL_GIT_COMMIT_SHA をフォールバックに使う。
-const sentryRelease = process.env.VITE_SENTRY_RELEASE || process.env.VERCEL_GIT_COMMIT_SHA;
+// release（どのデプロイで起きたか）。Vercel では VERCEL_GIT_COMMIT_SHA を
+// フォールバックに使うので、Vercel 側で追加の設定は不要。
+// この値はソースマップのアップロード先タグと、実行時に Sentry へ送る
+// release の両方に使う。**両者が一致しないとソースマップが適用されない**
+// ため、下の define で同じ定数をブラウザ側へ埋め込んでいる。
+const sentryRelease = process.env.VITE_SENTRY_RELEASE || process.env.VERCEL_GIT_COMMIT_SHA || '';
+// environment（本番 / プレビューの切り分け）。Vercel の VERCEL_ENV は
+// 'production' | 'preview' | 'development' を返す。未設定ならブラウザ側で
+// import.meta.env.MODE にフォールバックする。
+const sentryEnvironment = process.env.VITE_SENTRY_ENVIRONMENT || process.env.VERCEL_ENV || '';
 // 3 つの認証情報が揃ったビルドだけアップロードする。揃っていなければ
 // プラグインを差し込まず、ソースマップも生成しない（ビルドは壊れない）。
 const uploadSourcemaps = Boolean(sentryAuthToken && sentryOrg && sentryProject);
@@ -40,6 +47,12 @@ export default defineConfig({
         ]
       : []),
   ],
+  // ビルド時に決まる Sentry のメタ情報をブラウザ側へ埋め込む。
+  // VITE_ 変数と違い Vercel での追加設定が要らない（VERCEL_* から導出する）。
+  define: {
+    __SENTRY_RELEASE__: JSON.stringify(sentryRelease),
+    __SENTRY_ENVIRONMENT__: JSON.stringify(sentryEnvironment),
+  },
   // ソースマップはアップロードする時だけ生成する。
   build: {
     sourcemap: uploadSourcemaps,

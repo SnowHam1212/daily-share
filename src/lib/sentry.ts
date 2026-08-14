@@ -3,10 +3,19 @@ import * as Sentry from '@sentry/react'
 // 実行時の DSN。未設定（ローカル開発や DSN を登録していない環境）では
 // Sentry を一切初期化せず no-op にする。これにより .env が無くても
 // 開発・テストが妨げられない。
-const dsn = import.meta.env.VITE_SENTRY_DSN as string | undefined
+const dsn = import.meta.env.VITE_SENTRY_DSN
 
 /** Sentry が有効化されているか（DSN が設定されているか）。 */
 export const sentryEnabled = Boolean(dsn)
+
+// どのデプロイで起きたか。vite.config.ts が commit SHA を埋め込む。
+// **ソースマップのアップロード時に使う release と必ず同じ値**（食い違うと
+// 本番のスタックトレースが元コードに復元されない）。
+const release = __SENTRY_RELEASE__ || import.meta.env.VITE_SENTRY_RELEASE || undefined
+
+// 本番とプレビューを Sentry 上で分けるための環境名。Vercel では
+// VERCEL_ENV（production / preview）が入る。無ければ Vite のモード。
+const environment = __SENTRY_ENVIRONMENT__ || import.meta.env.MODE
 
 /**
  * Sentry を初期化する。`main.tsx` で描画前に一度だけ呼ぶ。
@@ -20,11 +29,10 @@ export function initSentry() {
 
   Sentry.init({
     dsn,
-    // 'production' / 'development' など Vite のモードをそのまま使う。
-    environment: import.meta.env.MODE,
-    // どのデプロイで起きたかを紐付けるリリースタグ（任意）。
-    // ビルド時に VITE_SENTRY_RELEASE（例: コミット SHA）を渡すと有効。
-    release: (import.meta.env.VITE_SENTRY_RELEASE as string | undefined) || undefined,
+    // 'production' / 'preview' など。Sentry 上で本番とプレビューを分ける。
+    environment,
+    // どのデプロイで起きたかを紐付けるリリースタグ。
+    release,
     // メール等の PII を自動付与しない。ユーザー識別は setSentryUser で
     // 最小限（ID のみ）を明示的に送る。
     sendDefaultPii: false,

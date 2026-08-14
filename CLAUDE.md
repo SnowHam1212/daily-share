@@ -110,3 +110,14 @@ RLS is enabled on all tables. Auth trigger `handle_new_user()` auto-inserts into
 Copy `.env.example` to **`.env.local`** and fill in your Supabase project URL and anon key.
 
 > **`.env` ではなく `.env.local` を使うこと。** `.env` は過去に追跡されており（`4d6f8ea` で untrack）、古いブランチ 26 本が今も `.env` をツリーに持っている。gitignore は「切替先のコミットが追跡しているファイル」を守れないため、それらのブランチと `main` を `git checkout` で行き来すると**ディスク上の `.env` が消える**。`.env.local` はどのブランチも追跡していないので、この問題が起きない。Vite は `.env.local` を優先して読むため設定変更は不要。
+
+## エラー監視（Sentry）
+
+`src/lib/sentry.ts` で初期化し、`App.tsx` の `Sentry.ErrorBoundary` で描画クラッシュを捕捉する。収集対象は**未捕捉例外のみ**（トレース・リプレイは `tracesSampleRate: 0` で無効）。
+
+- **`VITE_SENTRY_DSN` を設定したときだけ有効。** 未設定ならビルドから SDK の初期化ごと除去され no-op になるため、ローカル開発では何も設定しなくてよい
+- `release` と `environment` は `vite.config.ts` が `VERCEL_GIT_COMMIT_SHA` / `VERCEL_ENV` から `define` でバンドルへ埋め込む。**ソースマップのアップロード時に使う release と同じ値を使うこと**（食い違うと本番のスタックトレースが復元されない）
+- ユーザー識別は `setSentryUser` で **ID のみ**。メール等の PII は送らない（`sendDefaultPii: false`）
+- **`supabase.from(...)` の失敗は届かない。** エラーを throw せず戻り値で返すため、拾いたい箇所に `Sentry.captureException` を足す必要がある
+
+有効化手順（DSN 登録・通知設定・ソースマップ）は **[docs/sentry-setup.md](docs/sentry-setup.md)** に集約してある。
