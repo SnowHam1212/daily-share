@@ -96,9 +96,9 @@ export function AccountModal({ isOpen, onClose, initialTab = 0 }: AccountModalPr
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} isCentered size="md">
+    <Modal isOpen={isOpen} onClose={onClose} isCentered size="md" scrollBehavior="inside">
       <ModalOverlay bg="blackAlpha.500" backdropFilter="blur(2px)" />
-      <ModalContent mx={4}>
+      <ModalContent mx={4} my={{ base: 4, md: 16 }}>
         <ModalHeader fontFamily="heading">アカウント</ModalHeader>
         <ModalCloseButton borderRadius="full" />
         <ModalBody>

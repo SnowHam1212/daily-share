@@ -3,7 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover: ホーム画面に追加したときフルスクリーン表示になるため、
+         ノッチ／ホームバーの下に潜る領域まで描画し、余白は env(safe-area-inset-*) で確保する -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#0f9384" />
     <meta name="description" content="Daily Share — 仲間と今いる場所とこれからの予定を分かち合う" />
 

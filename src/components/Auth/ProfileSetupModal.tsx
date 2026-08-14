@@ -93,9 +93,10 @@ export function ProfileSetupModal({ isOpen, onComplete }: ProfileSetupModalProps
       closeOnOverlayClick={false}
       closeOnEsc={false}
       isCentered
+      scrollBehavior="inside"
     >
       <ModalOverlay />
-      <ModalContent mx={4}>
+      <ModalContent mx={4} my={{ base: 4, md: 16 }}>
         <ModalHeader>
           <Text fontSize="xl" fontWeight="medium">プロフィール設定</Text>
           <Text fontSize="sm" color="gray.500" fontWeight="normal" mt={1}>

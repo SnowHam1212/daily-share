@@ -33,9 +33,11 @@ interface EventModalProps {
 export function EventModal({ isOpen, onClose, form, setForm, onSubmit, isEditing }: EventModalProps) {
   const sharing = SHARING[form.sharingState as SharingState] ?? SHARING.private
   return (
-    <Modal isOpen={isOpen} onClose={onClose} isCentered>
+    // scrollBehavior="inside": 項目が多いので、狭い画面ではダイアログを
+    // 画面内に収めて中身だけスクロールさせる
+    <Modal isOpen={isOpen} onClose={onClose} isCentered scrollBehavior="inside">
       <ModalOverlay bg="blackAlpha.500" backdropFilter="blur(2px)" />
-      <ModalContent mx={4}>
+      <ModalContent mx={4} my={{ base: 4, md: 16 }}>
         <ModalHeader fontFamily="heading">{isEditing ? '予定を編集' : '予定を追加'}</ModalHeader>
         <ModalCloseButton borderRadius="full" />
         <ModalBody>

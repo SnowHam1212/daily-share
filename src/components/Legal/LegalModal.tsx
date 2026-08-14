@@ -93,7 +93,7 @@ export function LegalModal({ doc, onClose }: LegalModalProps) {
   return (
     <Modal isOpen={doc !== null} onClose={onClose} isCentered size="lg" scrollBehavior="inside">
       <ModalOverlay bg="blackAlpha.500" backdropFilter="blur(2px)" />
-      <ModalContent mx={4}>
+      <ModalContent mx={4} my={{ base: 4, md: 16 }}>
         <ModalHeader fontFamily="heading">
           {doc === 'terms' ? '利用規約' : 'プライバシーポリシー'}
         </ModalHeader>

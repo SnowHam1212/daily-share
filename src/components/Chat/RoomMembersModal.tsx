@@ -197,7 +197,7 @@ export function RoomMembersModal({
     <>
       <Modal isOpen={isOpen} onClose={onClose} isCentered scrollBehavior="inside">
         <ModalOverlay bg="blackAlpha.500" backdropFilter="blur(2px)" />
-        <ModalContent mx={4}>
+        <ModalContent mx={4} my={{ base: 4, md: 16 }}>
           <ModalHeader fontFamily="heading">メンバー管理</ModalHeader>
           <ModalCloseButton borderRadius="full" />
           <ModalBody>

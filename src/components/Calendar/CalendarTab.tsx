@@ -23,6 +23,7 @@ import {
 import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, RepeatIcon, HamburgerIcon, AddIcon } from '@chakra-ui/icons'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { aboveMobileNav } from '../../theme/layout'
 import { Button } from '../ui/Button'
 import { EventModal } from './EventModal'
 import { TimeGridView } from './TimeGridView'
@@ -48,9 +49,18 @@ import {
 
 const VIEW_LABEL: Record<CalendarView, string> = { day: '日', week: '週', month: '月' }
 
+/**
+ * スマホの初期表示は日表示にする。週表示は 7 列で最低 760px 必要なので、
+ * 狭い画面では横スクロール前提になり最初の一目で予定が読めない。
+ */
+function defaultView(): CalendarView {
+  if (typeof window === 'undefined') return 'week'
+  return window.matchMedia('(max-width: 47.99em)').matches ? 'day' : 'week'
+}
+
 export default function CalendarTab() {
   const { user, teams } = useAuth()
-  const [view, setView] = useState<CalendarView>('week')
+  const [view, setView] = useState<CalendarView>(defaultView)
   const [anchor, setAnchor] = useState(() => startOfDay(new Date()))
   const [events, setEvents] = useState<EventRow[]>([])
   const [loading, setLoading] = useState(false)
@@ -336,15 +346,10 @@ export default function CalendarTab() {
       />
 
       <Box flex={1} minW={0}>
-        {/* Toolbar */}
-        <Flex
-          justify="space-between"
-          align={{ base: 'stretch', md: 'center' }}
-          direction={{ base: 'column', md: 'row' }}
-          gap={3}
-          mb={5}
-        >
-          <HStack spacing={3}>
+        {/* Toolbar。狭い画面では日付ラベルを折り返して独立した行に置く
+            （ボタンと同じ行に並べると「8月9日 – …」と省略されてしまう）。 */}
+        <Flex align="center" wrap="wrap" gap={2} rowGap={2} mb={{ base: 4, md: 5 }}>
+          <HStack spacing={{ base: 2, md: 3 }}>
             <IconButton
               aria-label="メニュー"
               icon={<HamburgerIcon boxSize={5} />}
@@ -364,26 +369,44 @@ export default function CalendarTab() {
               <Box w="1px" h={6} bg="gray.200" />
               <IconButton aria-label="次へ" icon={<ChevronRightIcon boxSize={5} />} variant="ghost" borderRadius={0} onClick={goNext} />
             </HStack>
-            <Button variant="secondary" onClick={goToday}>
+            <Button variant="secondary" onClick={goToday} px={{ base: 4, md: 6 }}>
               今日
             </Button>
-            <Heading size="md" letterSpacing="tight" noOfLines={1}>
-              {rangeLabel}
-            </Heading>
           </HStack>
 
-          <HStack spacing={2}>
+          <Heading
+            size="md"
+            letterSpacing="tight"
+            noOfLines={1}
+            order={{ base: 1, md: 0 }}
+            w={{ base: 'full', md: 'auto' }}
+            flex={{ md: 1 }}
+          >
+            {rangeLabel}
+          </Heading>
+
+          <HStack spacing={2} ml="auto">
             <Button
               variant="secondary"
+              aria-label="更新"
               leftIcon={<RepeatIcon />}
+              iconSpacing={{ base: 0, md: 2 }}
+              px={{ base: 4, md: 6 }}
               onClick={handleRefresh}
               isLoading={refreshing}
-              loadingText="更新中"
             >
-              更新
+              {/* 狭い画面はアイコンだけにして、日付ラベルへ幅を譲る */}
+              <Box as="span" display={{ base: 'none', md: 'inline' }}>
+                更新
+              </Box>
             </Button>
             <Menu>
-              <MenuButton as={Button} variant="secondary" rightIcon={<ChevronDownIcon />}>
+              <MenuButton
+                as={Button}
+                variant="secondary"
+                rightIcon={<ChevronDownIcon />}
+                px={{ base: 4, md: 6 }}
+              >
                 {VIEW_LABEL[view]}
               </MenuButton>
               <MenuList minW="120px">
@@ -472,9 +495,10 @@ export default function CalendarTab() {
         onClick={openBlank}
         display={{ base: 'inline-flex', lg: 'none' }}
         position="fixed"
-        bottom={6}
-        right={6}
-        zIndex={20}
+        // スマホでは画面下のナビに重ならない高さへ逃がす。
+        bottom={{ base: aboveMobileNav(), md: 6 }}
+        right={{ base: 4, md: 6 }}
+        zIndex={1050}
         boxSize={14}
         borderRadius="full"
         bg="signal.500"

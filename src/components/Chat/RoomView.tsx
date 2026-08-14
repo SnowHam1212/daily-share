@@ -194,8 +194,11 @@ export function RoomView({ team, currentUserId, onBack, onLeft }: RoomViewProps)
       <Box
         ref={listRef}
         onScroll={handleScroll}
-        h="calc(100vh - 300px)"
-        minH="320px"
+        // 100vh はアドレスバーの分だけ実際の表示領域より大きく、入力欄が
+        // 画面外へ押し出される。dvh で実寸に合わせ、スマホは下部ナビの
+        // 高さも差し引く。
+        h="calc(100dvh - 300px)"
+        minH={{ base: '240px', md: '320px' }}
         overflowY="auto"
         px={3}
         py={4}

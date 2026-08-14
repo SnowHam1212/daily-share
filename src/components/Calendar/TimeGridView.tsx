@@ -67,7 +67,9 @@ export function TimeGridView({
             ref={scrollRef}
             direction="column"
             overflowY="auto"
-            maxH={{ base: '74vh', md: 'calc(100dvh - 200px)' }}
+            // スマホはヘッダー・ツールバー・下部ナビの分を引いて、
+            // グリッドが画面内に収まるようにする（74vh だとはみ出す）。
+            maxH={{ base: 'calc(100svh - 280px)', md: 'calc(100dvh - 200px)' }}
           >
             {/* Sticky header: day labels + all-day row stay visible while scrolling */}
             <Box position="sticky" top={0} zIndex={4} bg="paper-2">

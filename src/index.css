@@ -14,6 +14,8 @@
 
   color-scheme: light;
   font-synthesis: none;
+  /* iOS の横向きで文字だけ勝手に拡大されるのを止める */
+  -webkit-text-size-adjust: 100%;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -27,6 +29,12 @@ html,
 body {
   margin: 0;
   padding: 0;
+  /* 幅からはみ出す要素があっても、スマホのブラウザがページ全体を縮小
+     （shrink-to-fit）してレイアウトごとずらしてしまわないようにする。
+     はみ出し自体は各コンポーネント側で出さないのが前提の保険。
+     hidden ではなく clip を使う。hidden はスクロールコンテナを作ってしまい、
+     ヘッダーの position: sticky が効かなくなる。 */
+  overflow-x: clip;
 }
 
 body {

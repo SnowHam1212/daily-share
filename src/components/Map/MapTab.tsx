@@ -1,6 +1,6 @@
 import 'leaflet/dist/leaflet.css'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, ZoomControl, useMap, useMapEvents } from 'react-leaflet'
 import {
   Box,
   Button,
@@ -370,13 +370,21 @@ export default function MapTab() {
     : '位置情報を待機中...'
 
   return (
-    <Box bg="white" p={6} borderRadius="lg" boxShadow="sm" minH="calc(100vh - 160px)">
-      <Flex direction={{ base: 'column', md: 'row' }} justify="space-between" gap={4} mb={6}>
-        <VStack align="flex-start" spacing={3} flex="1">
-          <Text fontSize="2xl" fontWeight="semibold">
+    <Box bg="white" p={{ base: 3, md: 6 }} borderRadius="lg" boxShadow="sm">
+      <Flex direction={{ base: 'column', md: 'row' }} justify="space-between" gap={4} mb={{ base: 4, md: 6 }}>
+        <VStack align="flex-start" spacing={{ base: 2, md: 3 }} flex="1">
+          {/* 見出しは下部ナビの「マップ」と重複するので、狭い画面では省いて
+              地図そのものを少しでも上に出す */}
+          <Text fontSize="2xl" fontWeight="semibold" display={{ base: 'none', md: 'block' }}>
             マップ
           </Text>
-          <Text color="gray.600">「ライブ共有」をオンにすると、現在地が自動で送信され続けます。手動で送りたいときは「マップを更新」を押してください。左上の検索から特定の人を探せます。</Text>
+          {/* 狭い画面では説明が長いと地図が画面外へ押し出されるため、要点だけにする */}
+          <Text color="gray.600" fontSize="sm" display={{ base: 'block', md: 'none' }}>
+            「ライブ共有」をオンにすると現在地が自動で送信されます。
+          </Text>
+          <Text color="gray.600" display={{ base: 'none', md: 'block' }}>
+            「ライブ共有」をオンにすると、現在地が自動で送信され続けます。手動で送りたいときは「マップを更新」を押してください。左上の検索から特定の人を探せます。
+          </Text>
           <HStack spacing={3} flexWrap="wrap">
             <Badge colorScheme={sharingState === 'private' ? 'gray' : sharingState === 'friends' ? 'blue' : 'purple'}>
               {sharingState}
@@ -398,8 +406,8 @@ export default function MapTab() {
                 </Badge>
               )}
             </HStack>
-            <Text>{currentPositionLabel}</Text>
-            <Text>{saving ? '保存中...' : lastSavedAt ? `最終更新: ${lastSavedAt}` : ''}</Text>
+            <Text fontSize={{ base: 'sm', md: 'md' }}>{currentPositionLabel}</Text>
+            <Text fontSize={{ base: 'sm', md: 'md' }}>{saving ? '保存中...' : lastSavedAt ? `最終更新: ${lastSavedAt}` : ''}</Text>
             <Button
               size="sm"
               colorScheme="blue"
@@ -412,7 +420,7 @@ export default function MapTab() {
           </HStack>
         </VStack>
 
-        <Box minW="220px">
+        <Box minW={{ base: 0, md: '220px' }}>
           <Text mb={2} fontWeight="medium">
             共有範囲
           </Text>
@@ -463,9 +471,20 @@ export default function MapTab() {
         </Alert>
       )}
 
-      <Box h="calc(100vh - 280px)" position="relative">
-        {/* Find people: search teammates/friends who are sharing their location */}
-        <Box position="absolute" top={2} left={2} zIndex={1000} w={{ base: '70%', sm: '280px' }}>
+      {/* 100vh はスマホのアドレスバー分だけ実際の表示領域より大きく、
+          地図の下端が画面外へはみ出す。svh / dvh で実寸に合わせる。 */}
+      <Box h={{ base: '60svh', md: 'calc(100dvh - 280px)' }} minH="300px" position="relative">
+        {/* Find people: search teammates/friends who are sharing their location.
+            スマホでは地図の上端いっぱいに広げ、地図種別の切り替えとは
+            重ならないようにする（切り替えは下に逃がしてある）。 */}
+        <Box
+          position="absolute"
+          top={2}
+          left={2}
+          right={{ base: 2, sm: 'auto' }}
+          zIndex={1000}
+          w={{ base: 'auto', sm: '280px' }}
+        >
           <InputGroup bg="white" borderRadius="md" boxShadow="md">
             <InputLeftElement pointerEvents="none" color="gray.400">
               🔍
@@ -514,10 +533,13 @@ export default function MapTab() {
             </List>
           )}
         </Box>
+        {/* 地図種別の切り替え。スマホでは上に置くと検索欄と重なるため下へ。 */}
         <HStack
           position="absolute"
-          top={2}
-          right={2}
+          top={{ base: 'auto', sm: 2 }}
+          bottom={{ base: 2, sm: 'auto' }}
+          left={{ base: 2, sm: 'auto' }}
+          right={{ base: 'auto', sm: 2 }}
           zIndex={1000}
           bg="white"
           borderRadius="md"
@@ -541,8 +563,11 @@ export default function MapTab() {
           center={currentPosition ? [currentPosition.lat, currentPosition.lng] : [35.6762, 139.6503]}
           zoom={DEFAULT_ZOOM}
           doubleClickZoom={false}
+          // 既定の位置（左上）だと検索欄と重なるため、右下へ移す。
+          zoomControl={false}
           style={{ height: '100%', width: '100%' }}
         >
+          <ZoomControl position="bottomright" />
           <TileLayer
             attribution={TILE_LAYERS[tileLayer].attribution}
             url={TILE_LAYERS[tileLayer].url}

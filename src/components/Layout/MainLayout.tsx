@@ -22,6 +22,7 @@ import {
   useDisclosure,
 } from '@chakra-ui/react'
 import { avatarColor } from '../../lib/avatarColor'
+import { MOBILE_NAV_HEIGHT, aboveMobileNav } from '../../theme/layout'
 import { useAuth } from '../../hooks/useAuth'
 import { useRedeemPendingInvite } from '../../hooks/usePendingInvite'
 import { Wordmark } from '../ui/Wordmark'
@@ -39,6 +40,14 @@ const TeamsTab = lazy(() => import('../Team/TeamsTab'))
 
 /** タブの並び順（カレンダー・地図・トーク・フレンド・チーム）における「トーク」。 */
 const TALK_TAB_INDEX = 2
+
+const TABS = [
+  { icon: '🗓', label: 'カレンダー' },
+  { icon: '🗺', label: 'マップ' },
+  { icon: '💬', label: 'チャット' },
+  { icon: '🤝', label: 'フレンド' },
+  { icon: '👥', label: 'チーム' },
+] as const
 
 function TabFallback() {
   return (
@@ -70,7 +79,7 @@ export function MainLayout() {
   }
 
   return (
-    <Box minH="100vh" bg="paper">
+    <Box minH="100svh" bg="paper">
       <Tabs
         index={tabIndex}
         onChange={(index) => setTabIndex(index)}
@@ -84,20 +93,24 @@ export function MainLayout() {
           borderColor="gray.200"
           position="sticky"
           top={0}
-          zIndex={10}
+          // Leaflet のコントロール（z-index 1000）より前に出す。
+          // Chakra のモーダル（1400）より後ろに保つこと。
+          zIndex={1100}
         >
           <Container maxW="6xl" px={{ base: 4, md: 6 }}>
-            <Flex align="center" justify="space-between" h={16} gap={4}>
-              <Wordmark size="sm" />
+            <Flex align="center" justify="space-between" h={16} gap={{ base: 2, md: 4 }}>
+              <Wordmark size="sm" flexShrink={0} />
 
-              <TabList gap={1} bg="gray.100" p={1} borderRadius="full">
-                {[
-                  { icon: '🗓', label: 'カレンダー' },
-                  { icon: '🗺', label: 'マップ' },
-                  { icon: '💬', label: 'チャット' },
-                  { icon: '🤝', label: 'フレンド' },
-                  { icon: '👥', label: 'チーム' },
-                ].map((t) => (
+              {/* タブ本体。スマホでは横幅に収まらないため隠し、画面下の
+                  ナビ（下部の <Flex as="nav">）から同じタブを切り替える。 */}
+              <TabList
+                gap={1}
+                bg="gray.100"
+                p={1}
+                borderRadius="full"
+                display={{ base: 'none', md: 'flex' }}
+              >
+                {TABS.map((t) => (
                   <Tab
                     key={t.label}
                     borderRadius="full"
@@ -112,7 +125,7 @@ export function MainLayout() {
                   >
                     <HStack spacing={1.5}>
                       <Box as="span">{t.icon}</Box>
-                      <Box as="span" display={{ base: 'none', sm: 'block' }}>
+                      <Box as="span" display={{ base: 'none', lg: 'block' }}>
                         {t.label}
                       </Box>
                     </HStack>
@@ -120,7 +133,7 @@ export function MainLayout() {
                 ))}
               </TabList>
 
-              <HStack spacing={1}>
+              <HStack spacing={1} flexShrink={0}>
               <NotificationBell userId={user?.id} />
               <Menu>
                 <MenuButton
@@ -167,7 +180,14 @@ export function MainLayout() {
           </Container>
         </Box>
 
-        <Container as="main" maxW="6xl" px={{ base: 4, md: 6 }} py={{ base: 5, md: 8 }}>
+        <Container
+          as="main"
+          maxW="6xl"
+          px={{ base: 3, md: 6 }}
+          pt={{ base: 4, md: 8 }}
+          // スマホは下部ナビの下に本文が潜り込まないよう、その分の余白を空ける。
+          pb={{ base: aboveMobileNav(), md: 8 }}
+        >
           <TabPanels>
             <TabPanel p={0}>
               <Suspense fallback={<TabFallback />}>
@@ -196,6 +216,57 @@ export function MainLayout() {
             </TabPanel>
           </TabPanels>
         </Container>
+
+        {/* スマホ用の下部ナビ。ヘッダーに 5 タブ＋ロゴ＋通知＋アカウントを
+            並べると 390px 幅に収まらず、ブラウザがページ全体を縮小して
+            レイアウトが崩れるため、狭い画面ではタブをここへ逃がす。 */}
+        <Flex
+          as="nav"
+          aria-label="メインナビゲーション"
+          display={{ base: 'flex', md: 'none' }}
+          position="fixed"
+          bottom={0}
+          left={0}
+          right={0}
+          // 地図タブでは Leaflet のコントロール（z-index 1000）が
+          // 重なってくるので、それより前に置く。
+          zIndex={1100}
+          bg="paper-2"
+          borderTop="1px solid"
+          borderColor="gray.200"
+          pb="env(safe-area-inset-bottom)"
+        >
+          {TABS.map((t, i) => {
+            const selected = tabIndex === i
+            return (
+              <Box
+                as="button"
+                type="button"
+                key={t.label}
+                flex={1}
+                minW={0}
+                h={MOBILE_NAV_HEIGHT}
+                onClick={() => setTabIndex(i)}
+                aria-current={selected ? 'page' : undefined}
+                color={selected ? 'primary.600' : 'gray.500'}
+                transition="color 0.15s"
+              >
+                <Box as="span" display="block" fontSize="lg" lineHeight="1.4">
+                  {t.icon}
+                </Box>
+                <Box
+                  as="span"
+                  display="block"
+                  fontSize="10px"
+                  fontWeight="semibold"
+                  letterSpacing="-0.02em"
+                >
+                  {t.label}
+                </Box>
+              </Box>
+            )
+          })}
+        </Flex>
       </Tabs>
 
       {account.isOpen && (
