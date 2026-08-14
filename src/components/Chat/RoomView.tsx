@@ -12,11 +12,13 @@ import {
   useToast,
   useDisclosure,
 } from '@chakra-ui/react'
+import { avatarColor } from '../../lib/avatarColor'
 import { ArrowUpIcon, ArrowBackIcon } from '@chakra-ui/icons'
 import { supabase } from '../../lib/supabase'
 import { useTeamMembers } from '../../hooks/useTeamMembers'
+import { Button } from '../ui/Button'
 import { RoomMembersModal } from './RoomMembersModal'
-import { computeMessageFlags, formatDateLabel, formatTime } from './roomViewUtils'
+import { computeMessageFlags, formatDateLabel, formatTime, isNearBottom } from './roomViewUtils'
 import type { Database } from '../../types/database'
 
 type MessageRow = Database['public']['Tables']['team_messages']['Row']
@@ -43,6 +45,12 @@ export function RoomView({ team, currentUserId, onBack, onLeft }: RoomViewProps)
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+  // 最下部付近にいるか。描画のたびに読むだけなので state ではなく ref。
+  const atBottomRef = useRef(true)
+  const initialScrollDoneRef = useRef(false)
+  // 遡って読んでいる最中に届いた新着があるか。
+  const [hasNewBelow, setHasNewBelow] = useState(false)
   const membersDisclosure = useDisclosure()
 
   // 表示名は RPC 経由のメンバー一覧から引く（user_teams は自分の行しか見えないため）。
@@ -94,9 +102,40 @@ export function RoomView({ team, currentUserId, onBack, onLeft }: RoomViewProps)
     }
   }, [teamId, fetchMessages])
 
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    bottomRef.current?.scrollIntoView({ behavior })
+    setHasNewBelow(false)
+  }, [])
+
+  // スクロール位置を監視し、最下部付近にいるかを持つ。
+  const handleScroll = useCallback(() => {
+    const el = listRef.current
+    if (!el) return
+    const near = isNearBottom(el.scrollTop, el.scrollHeight, el.clientHeight)
+    atBottomRef.current = near
+    if (near) setHasNewBelow(false)
+  }, [])
+
+  // 新着が来たとき、最下部付近にいる場合だけ追従する。
+  // 遡って読んでいる最中に飛ばされると読書が中断されるため、
+  // その場合は「新着あり」を出すだけに留める。
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+    if (messages.length === 0) return
+    if (atBottomRef.current) {
+      // 初回描画（ルームを開いた直後）はアニメーション無しで最下部へ。
+      scrollToBottom(initialScrollDoneRef.current ? 'smooth' : 'auto')
+      initialScrollDoneRef.current = true
+    } else {
+      setHasNewBelow(true)
+    }
+  }, [messages, scrollToBottom])
+
+  // ルームを切り替えたら、次の描画で最下部に着地させる。
+  useEffect(() => {
+    atBottomRef.current = true
+    initialScrollDoneRef.current = false
+    setHasNewBelow(false)
+  }, [teamId])
 
   const nameOf = useCallback(
     (id: string) => (id === currentUserId ? 'あなた' : memberNames.get(id) ?? 'メンバー'),
@@ -108,16 +147,26 @@ export function RoomView({ team, currentUserId, onBack, onLeft }: RoomViewProps)
     if (!body || !currentUserId) return
     setSending(true)
     try {
-      const { error } = await supabase
+      // 挿入した行をそのまま受け取って追加する。以前は全件再取得していたが、
+      // Realtime でも同じ行が届くため二重に処理され、スクロールがちらついていた。
+      // RETURNING は team_messages_select（所属チーム）を満たすので通る。
+      const { data: inserted, error } = await supabase
         .from('team_messages')
         .insert({ teamId, userId: currentUserId, body })
+        .select()
+        .single()
       if (error) {
         console.error('send message error', error)
         toast({ status: 'error', title: '送信できませんでした', description: error.message })
         return
       }
       setDraft('')
-      void fetchMessages(teamId)
+      if (inserted) {
+        setMessages((prev) => (prev.some((m) => m.id === inserted.id) ? prev : [...prev, inserted]))
+      }
+      // 自分が送ったときは、遡って読んでいても最下部へ戻す。
+      atBottomRef.current = true
+      scrollToBottom()
     } finally {
       setSending(false)
     }
@@ -140,7 +189,18 @@ export function RoomView({ team, currentUserId, onBack, onLeft }: RoomViewProps)
         />
       </HStack>
 
-      <Box h="calc(100vh - 300px)" minH="320px" overflowY="auto" px={3} py={4} bg={CHAT_BG}>
+      {/* position relative は「新着」ボタンを重ねるため */}
+      <Box position="relative">
+      <Box
+        ref={listRef}
+        onScroll={handleScroll}
+        h="calc(100vh - 300px)"
+        minH="320px"
+        overflowY="auto"
+        px={3}
+        py={4}
+        bg={CHAT_BG}
+      >
         {loading ? (
           <Center h="100%">
             <Spinner color="white" thickness="3px" />
@@ -176,7 +236,7 @@ export function RoomView({ team, currentUserId, onBack, onLeft }: RoomViewProps)
                   >
                     {!mine &&
                       (startGroup ? (
-                        <Avatar size="sm" name={nameOf(m.userId)} bg="primary.500" color="white" />
+                        <Avatar size="sm" name={nameOf(m.userId)} bg={avatarColor(m.userId)} color="white" />
                       ) : (
                         <Box w="32px" flexShrink={0} />
                       ))}
@@ -210,6 +270,30 @@ export function RoomView({ team, currentUserId, onBack, onLeft }: RoomViewProps)
             <div ref={bottomRef} />
           </Box>
         )}
+      </Box>
+
+      {/* 遡って読んでいる最中に届いた新着への導線。
+          勝手にスクロールせず、本人が押したときだけ最下部へ戻す。 */}
+      {hasNewBelow && (
+        <Button
+          size="sm"
+          position="absolute"
+          bottom={3}
+          left="50%"
+          transform="translateX(-50%)"
+          borderRadius="full"
+          boxShadow="md"
+          bg="white"
+          color="gray.800"
+          _hover={{ bg: 'gray.50' }}
+          onClick={() => {
+            atBottomRef.current = true
+            scrollToBottom()
+          }}
+        >
+          新着メッセージ ↓
+        </Button>
+      )}
       </Box>
 
       <HStack p={2.5} borderTop="1px solid" borderColor="gray.200" bg="white" spacing={2}>

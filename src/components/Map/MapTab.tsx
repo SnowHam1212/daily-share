@@ -22,6 +22,7 @@ import {
   Switch,
   FormLabel,
 } from '@chakra-ui/react'
+import { avatarColor } from '../../lib/avatarColor'
 import { supabase } from '../../lib/supabase'
 import { fetchPublicProfiles } from '../../lib/profiles'
 import { useAuth } from '../../hooks/useAuth'
@@ -504,7 +505,7 @@ export default function MapTab() {
                     onClick={() => focusPerson(p.pos)}
                   >
                     <HStack spacing={2}>
-                      <Avatar size="xs" name={p.name} bg="primary.500" color="white" />
+                      <Avatar size="xs" name={p.name} bg={avatarColor(p.id)} color="white" />
                       <Text fontSize="sm">{p.name}</Text>
                     </HStack>
                   </ListItem>

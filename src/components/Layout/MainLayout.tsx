@@ -21,6 +21,7 @@ import {
   Spinner,
   useDisclosure,
 } from '@chakra-ui/react'
+import { avatarColor } from '../../lib/avatarColor'
 import { useAuth } from '../../hooks/useAuth'
 import { useRedeemPendingInvite } from '../../hooks/usePendingInvite'
 import { Wordmark } from '../ui/Wordmark'
@@ -128,11 +129,11 @@ export function MainLayout() {
                   px={2}
                   borderRadius="full"
                 >
-                  <Avatar size="sm" name={name} bg="primary.500" color="white" />
+                  <Avatar size="sm" name={name} bg={avatarColor(user?.id)} color="white" />
                 </MenuButton>
                 <MenuList borderRadius="xl" borderColor="gray.200" boxShadow="lg" minW="240px">
                   <HStack px={3} py={2} spacing={3}>
-                    <Avatar size="sm" name={name} bg="primary.500" color="white" />
+                    <Avatar size="sm" name={name} bg={avatarColor(user?.id)} color="white" />
                     <Box minW={0}>
                       <Text fontWeight="semibold" color="gray.900" noOfLines={1}>
                         {name}

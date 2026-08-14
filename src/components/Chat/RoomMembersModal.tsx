@@ -26,6 +26,7 @@ import {
   useClipboard,
   useToast,
 } from '@chakra-ui/react'
+import { avatarColor } from '../../lib/avatarColor'
 import { CopyIcon, CloseIcon, AddIcon, LinkIcon } from '@chakra-ui/icons'
 import { supabase } from '../../lib/supabase'
 import { fetchPublicProfiles } from '../../lib/profiles'
@@ -268,7 +269,7 @@ export function RoomMembersModal({
                       const removable = canRemove && !isMe && (m.role !== 'admin' || isAdmin)
                       return (
                         <HStack key={m.userId} spacing={3}>
-                          <Avatar size="sm" name={m.displayName} bg="primary.500" color="white" />
+                          <Avatar size="sm" name={m.displayName} bg={avatarColor(m.userId)} color="white" />
                           <Box flex={1} minW={0}>
                             <Text fontSize="sm" color="gray.800" noOfLines={1}>
                               {m.displayName}
@@ -325,7 +326,7 @@ export function RoomMembersModal({
                     <VStack align="stretch" spacing={2}>
                       {invitations.map((inv) => (
                         <HStack key={inv.invitationId} spacing={3}>
-                          <Avatar size="sm" name={inv.inviteeName} bg="gray.300" color="white" />
+                          <Avatar size="sm" name={inv.inviteeName} bg={avatarColor(inv.inviteeId)} color="white" opacity={0.6} />
                           <Box flex={1} minW={0}>
                             <Text fontSize="sm" color="gray.800" noOfLines={1}>
                               {inv.inviteeName}
@@ -365,7 +366,7 @@ export function RoomMembersModal({
                   <VStack align="stretch" spacing={2}>
                     {invitableFriends.map((f) => (
                       <HStack key={f.id} spacing={3}>
-                        <Avatar size="sm" name={f.displayName} bg="gray.400" color="white" />
+                        <Avatar size="sm" name={f.displayName} bg={avatarColor(f.id)} color="white" />
                         <Text fontSize="sm" color="gray.800" flex={1} minW={0} noOfLines={1}>
                           {f.displayName}
                         </Text>

@@ -13,6 +13,7 @@ import {
   Divider,
   useToast,
 } from '@chakra-ui/react'
+import { avatarColor } from '../../lib/avatarColor'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { fetchPublicProfiles, searchUsers } from '../../lib/profiles'
@@ -178,7 +179,7 @@ export default function FriendsTab() {
     return (
       <HStack justify="space-between" spacing={3}>
         <HStack spacing={3} minW={0}>
-          <Avatar size="sm" name={person.displayName} bg="primary.500" color="white" />
+          <Avatar size="sm" name={person.displayName} bg={avatarColor(person.id)} color="white" />
           <Box minW={0}>
             <Text fontSize="sm" fontWeight="600" color="gray.800" noOfLines={1}>
               {person.displayName}
