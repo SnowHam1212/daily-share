@@ -16,6 +16,7 @@ import {
   Center,
   useToast,
 } from '@chakra-ui/react'
+import { avatarColor } from '../../lib/avatarColor'
 import { supabase } from '../../lib/supabase'
 import { useNotifications } from '../../hooks/useNotifications'
 
@@ -98,7 +99,7 @@ export function NotificationBell({ userId }: { userId: string | undefined }) {
               {friendRequests.map((n) => (
                 <Box key={n.requestId} px={2} py={2} borderRadius="md" _hover={{ bg: 'gray.50' }}>
                   <HStack spacing={3} align="start">
-                    <Avatar size="sm" name={n.requester.displayName} bg="primary.500" color="white" />
+                    <Avatar size="sm" name={n.requester.displayName} bg={avatarColor(n.requester.id)} color="white" />
                     <Box minW={0} flex={1}>
                       <Text fontSize="sm" color="gray.800">
                         <Text as="span" fontWeight="600">

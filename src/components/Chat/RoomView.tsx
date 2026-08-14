@@ -12,6 +12,7 @@ import {
   useToast,
   useDisclosure,
 } from '@chakra-ui/react'
+import { avatarColor } from '../../lib/avatarColor'
 import { ArrowUpIcon, ArrowBackIcon } from '@chakra-ui/icons'
 import { supabase } from '../../lib/supabase'
 import { useTeamMembers } from '../../hooks/useTeamMembers'
@@ -235,7 +236,7 @@ export function RoomView({ team, currentUserId, onBack, onLeft }: RoomViewProps)
                   >
                     {!mine &&
                       (startGroup ? (
-                        <Avatar size="sm" name={nameOf(m.userId)} bg="primary.500" color="white" />
+                        <Avatar size="sm" name={nameOf(m.userId)} bg={avatarColor(m.userId)} color="white" />
                       ) : (
                         <Box w="32px" flexShrink={0} />
                       ))}

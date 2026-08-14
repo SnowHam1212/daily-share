@@ -18,6 +18,7 @@ import {
   useClipboard,
   useToast,
 } from '@chakra-ui/react'
+import { avatarColor } from '../../lib/avatarColor'
 import { CopyIcon, AddIcon } from '@chakra-ui/icons'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
@@ -140,7 +141,7 @@ function TeamCard({
         <VStack align="stretch" spacing={2}>
           {members.map((m) => (
             <HStack key={m.userId} spacing={3}>
-              <Avatar size="xs" name={m.displayName} bg="primary.500" color="white" />
+              <Avatar size="xs" name={m.displayName} bg={avatarColor(m.userId)} color="white" />
               <Text fontSize="sm" color="gray.800">
                 {m.displayName}
                 {m.userId === currentUserId && (
@@ -211,7 +212,7 @@ function InvitationsCard({ onAccepted }: { onAccepted: () => Promise<void> | voi
       <VStack align="stretch" spacing={3}>
         {invitations.map((inv) => (
           <HStack key={inv.invitationId} spacing={3} wrap="wrap">
-            <Avatar size="sm" name={inv.teamName} bg="primary.500" color="white" />
+            <Avatar size="sm" name={inv.teamName} bg={avatarColor(inv.teamId)} color="white" />
             <Box flex={1} minW="140px">
               <Text fontSize="sm" fontWeight="semibold" color="gray.900" noOfLines={1}>
                 {inv.teamName}

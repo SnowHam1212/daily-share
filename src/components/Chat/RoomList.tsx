@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Box, Flex, HStack, Text, Avatar, VStack } from '@chakra-ui/react'
+import { avatarColor } from '../../lib/avatarColor'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
 import {
@@ -118,7 +119,7 @@ export function RoomList({ teams, onSelect }: RoomListProps) {
             _hover={{ bg: 'gray.50' }}
             onClick={() => onSelect(t.id)}
           >
-            <Avatar name={t.teamName} bg="primary.500" color="white" />
+            <Avatar name={t.teamName} bg={avatarColor(t.id)} color="white" />
             <Box flex={1} minW={0}>
               <Flex justify="space-between" align="baseline" gap={2}>
                 <Text fontWeight="semibold" color="gray.900" noOfLines={1}>

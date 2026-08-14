@@ -22,6 +22,7 @@ import {
   Divider,
   useToast,
 } from '@chakra-ui/react'
+import { avatarColor } from '../../lib/avatarColor'
 import { useAuth } from '../../hooks/useAuth'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
@@ -103,7 +104,7 @@ export function AccountModal({ isOpen, onClose, initialTab = 0 }: AccountModalPr
         <ModalBody>
           {/* Account summary */}
           <HStack spacing={3} mb={4}>
-            <Avatar size="md" name={form.displayName || email} bg="primary.500" color="white" />
+            <Avatar size="md" name={form.displayName || email} bg={avatarColor(user?.id)} color="white" />
             <Box minW={0}>
               <Text fontWeight="700" color="gray.900" noOfLines={1}>
                 {form.displayName || '名称未設定'}
