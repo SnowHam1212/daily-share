@@ -4,8 +4,18 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <!-- viewport-fit=cover: ホーム画面に追加したときフルスクリーン表示になるため、
-         ノッチ／ホームバーの下に潜る領域まで描画し、余白は env(safe-area-inset-*) で確保する -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+         ノッチ／ホームバーの下に潜る領域まで描画し、余白は env(safe-area-inset-*) で確保する
+
+         interactive-widget=resizes-content: ソフトキーボードでレイアウト
+         ビューポートを縮める。既定の resizes-visual だとキーボードが出ても
+         レイアウトは縮まないため、position: fixed の下部ナビが本文の上へ
+         押し上がって重なる（チャットの入力欄をタップすると踏む）。
+         100dvh を使っている箇所もキーボード分を差し引けるようになる。
+         非対応ブラウザは無視するだけなので副作用は無い。 -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
+    />
     <meta name="theme-color" content="#0f9384" />
     <meta name="description" content="Daily Share — 仲間と今いる場所とこれからの予定を分かち合う" />
 
