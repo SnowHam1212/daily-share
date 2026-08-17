@@ -22,7 +22,7 @@ import {
   useDisclosure,
 } from '@chakra-ui/react'
 import { avatarColor } from '../../lib/avatarColor'
-import { MOBILE_NAV_HEIGHT, aboveMobileNav } from '../../theme/layout'
+import { COMPACT_NAV_QUERY, MOBILE_NAV_HEIGHT, aboveMobileNav } from '../../theme/layout'
 import { useAuth } from '../../hooks/useAuth'
 import { useRedeemPendingInvite } from '../../hooks/usePendingInvite'
 import { Wordmark } from '../ui/Wordmark'
@@ -102,13 +102,15 @@ export function MainLayout() {
               <Wordmark size="sm" flexShrink={0} />
 
               {/* タブ本体。スマホでは横幅に収まらないため隠し、画面下の
-                  ナビ（下部の <Flex as="nav">）から同じタブを切り替える。 */}
+                  ナビ（下部の <Flex as="nav">）から同じタブを切り替える。
+                  横向きスマホもここに含める（COMPACT_NAV_QUERY 参照）。 */}
               <TabList
                 gap={1}
                 bg="gray.100"
                 p={1}
                 borderRadius="full"
-                display={{ base: 'none', md: 'flex' }}
+                display="flex"
+                sx={{ [COMPACT_NAV_QUERY]: { display: 'none' } }}
               >
                 {TABS.map((t) => (
                   <Tab
@@ -185,8 +187,10 @@ export function MainLayout() {
           maxW="6xl"
           px={{ base: 3, md: 6 }}
           pt={{ base: 4, md: 8 }}
-          // スマホは下部ナビの下に本文が潜り込まないよう、その分の余白を空ける。
-          pb={{ base: aboveMobileNav(), md: 8 }}
+          // 下部ナビの下に本文が潜り込まないよう、その分の余白を空ける。
+          // ナビの出し分けと同じ条件にすること（ずれると本文が隠れる）。
+          pb={8}
+          sx={{ [COMPACT_NAV_QUERY]: { paddingBottom: aboveMobileNav() } }}
         >
           <TabPanels>
             <TabPanel p={0}>
@@ -219,11 +223,13 @@ export function MainLayout() {
 
         {/* スマホ用の下部ナビ。ヘッダーに 5 タブ＋ロゴ＋通知＋アカウントを
             並べると 390px 幅に収まらず、ブラウザがページ全体を縮小して
-            レイアウトが崩れるため、狭い画面ではタブをここへ逃がす。 */}
+            レイアウトが崩れるため、狭い画面ではタブをここへ逃がす。
+            横向きスマホ（幅は広いが高さが低い）もこちらを使う。 */}
         <Flex
           as="nav"
           aria-label="メインナビゲーション"
-          display={{ base: 'flex', md: 'none' }}
+          display="none"
+          sx={{ [COMPACT_NAV_QUERY]: { display: 'flex' } }}
           position="fixed"
           bottom={0}
           left={0}

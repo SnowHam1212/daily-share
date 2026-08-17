@@ -13,6 +13,7 @@ import {
   useDisclosure,
 } from '@chakra-ui/react'
 import { avatarColor } from '../../lib/avatarColor'
+import { COMPACT_NAV_QUERY, MOBILE_NAV_HEIGHT } from '../../theme/layout'
 import { ArrowUpIcon, ArrowBackIcon } from '@chakra-ui/icons'
 import { supabase } from '../../lib/supabase'
 import { useTeamMembers } from '../../hooks/useTeamMembers'
@@ -195,10 +196,18 @@ export function RoomView({ team, currentUserId, onBack, onLeft }: RoomViewProps)
         ref={listRef}
         onScroll={handleScroll}
         // 100vh はアドレスバーの分だけ実際の表示領域より大きく、入力欄が
-        // 画面外へ押し出される。dvh で実寸に合わせ、スマホは下部ナビの
-        // 高さも差し引く。
+        // 画面外へ押し出される。dvh で実寸に合わせる。
         h="calc(100dvh - 300px)"
-        minH={{ base: '240px', md: '320px' }}
+        minH="320px"
+        // 下部ナビが出ている画面では、その高さも差し引かないと入力欄が
+        // ナビの下に潜る。minH も下げる（横向きスマホは画面高が 390px
+        // 程度しかなく、320px を確保すると入力欄が画面外へ出るため）。
+        sx={{
+          [COMPACT_NAV_QUERY]: {
+            height: `calc(100dvh - 300px - ${MOBILE_NAV_HEIGHT} - env(safe-area-inset-bottom))`,
+            minHeight: '160px',
+          },
+        }}
         overflowY="auto"
         px={3}
         py={4}
