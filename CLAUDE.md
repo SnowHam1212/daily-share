@@ -78,6 +78,21 @@ RLS is enabled on all tables. Auth trigger `handle_new_user()` auto-inserts into
 - 誰が他メンバーを追放できるかは `teams."removalPolicy"`（`admin_only` / `anyone` / `nobody`）で決まる。チーム作成時に決定し、あとから変更する導線は無い
 - `is_team_member` / `is_team_admin` は内部ヘルパで、`authenticated` から `REVOKE` 済み（membership oracle を防ぐため）。**新しい RPC を足すときも GRANT しないこと**
 
+### RPC を足すときの `REVOKE` の書き方（必ず `anon` を明示する）
+
+**`REVOKE EXECUTE ... FROM public` だけでは anon を締め出せない。** 必ず `FROM anon, public` と書くこと。
+
+```sql
+GRANT  EXECUTE ON FUNCTION public.my_rpc(uuid) TO authenticated;
+REVOKE EXECUTE ON FUNCTION public.my_rpc(uuid) FROM anon, public;  -- anon を省かない
+```
+
+Supabase は `ALTER DEFAULT PRIVILEGES ... GRANT ALL ON FUNCTIONS TO anon, authenticated, service_role` を既定で設定しているため、新しく作られた関数には **`anon` への明示的な GRANT** が付く。`PUBLIC` 擬似ロールへの既定付与とは別物なので、`FROM public` を剥がしても anon の明示 GRANT は残る。
+
+2026-08-17 に本番で実証した。`FROM public` だけで REVOKE していた `0014` の3関数は未ログインから実行でき、`FROM anon, public` で剥がしていた関数だけが `42501` を返していた（#117 / `0022` で修正・適用済み）。
+
+**例外:** `shares_team_for_location` は `locations_select` のポリシー式から評価されるため、`authenticated` の `EXECUTE` を残すこと。剥がすと `locations` の SELECT 自体が `42501` になる（`0019` に記録あり）。
+
 ### Migrations
 
 番号のプレフィックスが Supabase の履歴テーブルの主キーになるため、**番号を重複させないこと**。過去に `0007` と `0008` が重複し、片方が履歴に記録されず `db push` が通らなくなった（`0013` / `0014` へリナンバーして解消）。
