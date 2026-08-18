@@ -242,6 +242,40 @@ export default function MapTab() {
     void fetchFriends()
   }, [fetchFriends])
 
+  // 自分の共有設定を DB から復元する（#111）。
+  //
+  // MainLayout の <Tabs isLazy> は既定が lazyBehavior="unmount" なので、
+  // タブを離れると MapTab ごと unmount され、戻ると sharingState は
+  // リテラル初期値の 'private' で作り直される。locations は upsert して
+  // いるだけで一度も読んでいなかったため、DB に 'team' が入っていても
+  // 画面は 'private' を表示していた。
+  //
+  // 表示のずれだけでなく、ライブ共有が有効だとそのまま次の送信で
+  // 'private' を書き戻すため、ユーザーが何もしていないのに共有範囲が
+  // 黙って下がる（チームメイトから見えなくなる）。
+  //
+  // locations_select は自分の行を必ず返すので RLS 上も問題ない。
+  const restoreSharingSettings = useCallback(async () => {
+    if (!user) return
+    const { data, error } = await supabase
+      .from('locations')
+      .select('sharingState, sharedTeamIds')
+      .eq('userId', user.id)
+      .maybeSingle()
+    if (error) {
+      console.error('restore sharing settings error', error)
+      return
+    }
+    // 行が無い＝まだ一度も位置を送っていない。既定の 'private' のままでよい。
+    if (!data) return
+    setSharingState(data.sharingState)
+    setSharedTeams(new Set(data.sharedTeamIds ?? []))
+  }, [user])
+
+  useEffect(() => {
+    void restoreSharingSettings()
+  }, [restoreSharingSettings])
+
   useEffect(() => {
     if (!user) return
     if (!('geolocation' in navigator)) {
