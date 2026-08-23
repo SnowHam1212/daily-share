@@ -12,7 +12,11 @@ import {
   monthGridDays,
   overlapsDay,
   eventToForm,
+  formToEventValues,
   layoutDay,
+  viewerTimeZone,
+  EMPTY_FORM,
+  type EventForm,
   type EventRow,
 } from './calendarUtils'
 
@@ -30,6 +34,8 @@ function makeEvent(overrides: Partial<EventRow> & { startAt: string; endAt: stri
     recurrence: overrides.recurrence ?? 'none',
     recurrenceEndDate: overrides.recurrenceEndDate ?? null,
     timezone: overrides.timezone ?? null,
+    externalUid: overrides.externalUid ?? null,
+    externalSource: overrides.externalSource ?? null,
     createdAt: overrides.createdAt ?? null,
     startAt: overrides.startAt,
     endAt: overrides.endAt,
@@ -185,5 +191,97 @@ describe('layoutDay', () => {
       makeEvent({ id: 'allday', isAllDay: true, startAt: new Date(2026, 5, 10, 0).toISOString(), endAt: new Date(2026, 5, 11, 0).toISOString() }),
     ]
     expect(layoutDay(day, events)).toHaveLength(0)
+  })
+})
+
+describe('formToEventValues', () => {
+  const base: EventForm = {
+    ...EMPTY_FORM,
+    name: '打ち合わせ',
+    startDate: '2026-06-10',
+    startTime: '09:00',
+    endDate: '2026-06-10',
+    endTime: '10:00',
+  }
+
+  function values(form: EventForm) {
+    const result = formToEventValues(form)
+    if (!result.ok) throw new Error(`expected ok, got: ${result.error}`)
+    return result.values
+  }
+
+  it('converts a timed event to local instants', () => {
+    const v = values(base)
+    expect(v.startAt).toBe(new Date(2026, 5, 10, 9).toISOString())
+    expect(v.endAt).toBe(new Date(2026, 5, 10, 10).toISOString())
+    expect(v.isAllDay).toBe(false)
+    expect(v.timezone).toBe(viewerTimeZone())
+  })
+
+  it('keeps a personal event teamId of null', () => {
+    expect(values(base).teamId).toBeNull()
+    expect(values({ ...base, teamId: 't1' }).teamId).toBe('t1')
+  })
+
+  it('stores an all-day event as midnight..next midnight (exclusive)', () => {
+    const v = values({ ...base, isAllDay: true, endDate: '2026-06-11' })
+    expect(v.startAt).toBe(new Date(2026, 5, 10).toISOString())
+    expect(v.endAt).toBe(new Date(2026, 5, 12).toISOString())
+  })
+
+  it('defaults an all-day event without an end date to a single day', () => {
+    const v = values({ ...base, isAllDay: true, endDate: '' })
+    expect(v.endAt).toBe(new Date(2026, 5, 11).toISOString())
+  })
+
+  it('defaults a missing end time to one hour', () => {
+    const v = values({ ...base, endTime: '' })
+    expect(v.endAt).toBe(new Date(2026, 5, 10, 10).toISOString())
+  })
+
+  it('keeps the original timezone when editing', () => {
+    expect(values({ ...base, timezone: 'America/New_York' }).timezone).toBe('America/New_York')
+  })
+
+  it('drops the recurrence end date when the event does not repeat', () => {
+    const v = values({ ...base, recurrence: 'none', recurrenceEndDate: '2026-07-01' })
+    expect(v.recurrenceEndDate).toBeNull()
+  })
+
+  it('keeps the recurrence end date for a repeating event', () => {
+    const v = values({ ...base, recurrence: 'weekly', recurrenceEndDate: '2026-07-01' })
+    expect(v.recurrenceEndDate).toBe('2026-07-01')
+  })
+
+  it('trims the title and turns a blank location into null', () => {
+    const v = values({ ...base, name: '  打ち合わせ  ', eventLocation: '   ' })
+    expect(v.name).toBe('打ち合わせ')
+    expect(v.eventLocation).toBeNull()
+  })
+
+  it('rejects an empty title', () => {
+    expect(formToEventValues({ ...base, name: '   ' })).toEqual({
+      ok: false,
+      error: 'タイトルを入力してください',
+    })
+  })
+
+  it('rejects a missing start date or time', () => {
+    expect(formToEventValues({ ...base, startDate: '' }).ok).toBe(false)
+    expect(formToEventValues({ ...base, startTime: '' }).ok).toBe(false)
+    // 終日なら開始時刻は要らない
+    expect(formToEventValues({ ...base, isAllDay: true, startTime: '' }).ok).toBe(true)
+  })
+
+  // DB の CHECK ("startAt" < "endAt") に当てて分かりにくいエラーを出さないよう、
+  // フォーム側で先に弾く。
+  it('rejects an end that is not after the start', () => {
+    const result = formToEventValues({ ...base, endTime: '09:00' })
+    expect(result).toEqual({ ok: false, error: '終了は開始より後にしてください' })
+  })
+
+  it('rejects an all-day end date before the start date', () => {
+    const result = formToEventValues({ ...base, isAllDay: true, endDate: '2026-06-09' })
+    expect(result).toEqual({ ok: false, error: '終了日は開始日以降にしてください' })
   })
 })

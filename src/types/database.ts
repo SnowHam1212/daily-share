@@ -187,7 +187,7 @@ export type Database = {
         Row: {
           id: string
           createdBy: string
-          teamId: string
+          teamId: string | null
           name: string
           startAt: string
           endAt: string
@@ -197,12 +197,14 @@ export type Database = {
           recurrence: 'none' | 'daily' | 'weekly' | 'monthly'
           recurrenceEndDate: string | null
           timezone: string | null
+          externalUid: string | null
+          externalSource: string | null
           createdAt: string | null
         }
         Insert: {
           id?: string
           createdBy: string
-          teamId: string
+          teamId?: string | null
           name: string
           startAt: string
           endAt: string
@@ -212,12 +214,14 @@ export type Database = {
           recurrence?: 'none' | 'daily' | 'weekly' | 'monthly'
           recurrenceEndDate?: string | null
           timezone?: string | null
+          externalUid?: string | null
+          externalSource?: string | null
           createdAt?: string | null
         }
         Update: {
           id?: string
           createdBy?: string
-          teamId?: string
+          teamId?: string | null
           name?: string
           startAt?: string
           endAt?: string
@@ -227,6 +231,8 @@ export type Database = {
           recurrence?: 'none' | 'daily' | 'weekly' | 'monthly'
           recurrenceEndDate?: string | null
           timezone?: string | null
+          externalUid?: string | null
+          externalSource?: string | null
           createdAt?: string | null
         }
         Relationships: []

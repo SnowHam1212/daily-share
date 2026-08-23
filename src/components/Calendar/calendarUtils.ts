@@ -175,6 +175,8 @@ export interface EventForm {
   sharingState: string
   recurrence: Recurrence
   recurrenceEndDate: string
+  // 予定の保存先。null はチームに属さない「個人の予定」。
+  teamId: string | null
   // 編集時に元予定のTZを引き継ぐ（新規作成時は undefined）。
   timezone?: string
 }
@@ -190,6 +192,7 @@ export const EMPTY_FORM: EventForm = {
   sharingState: 'private',
   recurrence: 'none',
   recurrenceEndDate: '',
+  teamId: null,
   timezone: undefined,
 }
 
@@ -221,6 +224,7 @@ export function eventToForm(ev: EventRow): EventForm {
       sharingState: ev.sharingState,
       recurrence: ev.recurrence ?? 'none',
       recurrenceEndDate: ev.recurrenceEndDate ?? '',
+      teamId: ev.teamId,
       timezone: ev.timezone,
     }
   }
@@ -237,7 +241,78 @@ export function eventToForm(ev: EventRow): EventForm {
     sharingState: ev.sharingState,
     recurrence: ev.recurrence ?? 'none',
     recurrenceEndDate: ev.recurrenceEndDate ?? '',
+    teamId: ev.teamId,
     timezone: ev.timezone ?? undefined,
+  }
+}
+
+// The columns an event insert/update writes. `createdBy` is added by the caller.
+export interface EventValues {
+  name: string
+  startAt: string
+  endAt: string
+  isAllDay: boolean
+  eventLocation: string | null
+  sharingState: SharingState
+  recurrence: Recurrence
+  recurrenceEndDate: string | null
+  teamId: string | null
+  timezone: string
+}
+
+export type EventFormResult = { ok: true; values: EventValues } | { ok: false; error: string }
+
+/**
+ * フォームの入力を events の行に変換する。日時が不正なまま送ると DB の
+ * CHECK ("startAt" < "endAt") で弾かれ、理由の分からないエラーになるため、
+ * ここで先に検証してメッセージを返す。
+ */
+export function formToEventValues(form: EventForm): EventFormResult {
+  const name = form.name.trim()
+  if (!name) return { ok: false, error: 'タイトルを入力してください' }
+  if (!form.startDate) return { ok: false, error: '開始日を入力してください' }
+  if (!form.isAllDay && !form.startTime) return { ok: false, error: '開始時刻を入力してください' }
+
+  let start: Date
+  let end: Date
+  if (form.isAllDay) {
+    start = new Date(`${form.startDate}T00:00`)
+    // 終日は「最終日の翌日 0:00」を排他的な終わりとして持つ。
+    end = addDays(new Date(`${form.endDate || form.startDate}T00:00`), 1)
+  } else {
+    start = new Date(`${form.startDate}T${form.startTime}`)
+    const endRaw = new Date(`${form.endDate || form.startDate}T${form.endTime}`)
+    // 終了未入力なら 1 時間の予定にする。
+    end = isNaN(endRaw.getTime()) ? new Date(start.getTime() + 60 * 60 * 1000) : endRaw
+  }
+
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    return { ok: false, error: '日時が正しくありません' }
+  }
+  if (end <= start) {
+    return {
+      ok: false,
+      error: form.isAllDay ? '終了日は開始日以降にしてください' : '終了は開始より後にしてください',
+    }
+  }
+
+  return {
+    ok: true,
+    values: {
+      name,
+      startAt: start.toISOString(),
+      endAt: end.toISOString(),
+      isAllDay: form.isAllDay,
+      eventLocation: form.eventLocation.trim() || null,
+      sharingState: form.sharingState as SharingState,
+      recurrence: form.recurrence,
+      recurrenceEndDate: form.recurrence !== 'none' && form.recurrenceEndDate ? form.recurrenceEndDate : null,
+      teamId: form.teamId,
+      // 編集時は元のTZを引き継ぎ、新規・未設定なら閲覧者のTZを記録する。
+      // 終日予定の日付は保存側で常にローカル深夜＝このTZの深夜になるため、
+      // 表示は dayKeyInTZ により全閲覧者で同じ日付に揃う。
+      timezone: form.timezone ?? viewerTimeZone(),
+    },
   }
 }
 
