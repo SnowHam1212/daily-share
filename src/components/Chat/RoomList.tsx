@@ -3,6 +3,7 @@ import { Box, Flex, HStack, Text, Avatar, VStack } from '@chakra-ui/react'
 import { avatarColor } from '../../lib/avatarColor'
 import { supabase } from '../../lib/supabase'
 import type { Database } from '../../types/database'
+import { formatBadgeCount } from './unreadUtils'
 import {
   foldLatestByTeam,
   formatListTime,
@@ -31,9 +32,11 @@ const PREVIEW_FETCH_LIMIT = 200
 interface RoomListProps {
   teams: Team[]
   onSelect: (teamId: string) => void
+  /** teamId -> 未読件数（#110）。MainLayout 側で数えたものを受け取る。 */
+  unreadByTeam?: Map<string, number>
 }
 
-export function RoomList({ teams, onSelect }: RoomListProps) {
+export function RoomList({ teams, onSelect, unreadByTeam }: RoomListProps) {
   // teamId -> 最新メッセージ。
   const [previews, setPreviews] = useState<Map<string, Preview>>(new Map())
 
@@ -107,6 +110,7 @@ export function RoomList({ teams, onSelect }: RoomListProps) {
     >
       {orderedTeams.map((t, i) => {
         const preview = previews.get(t.id)
+        const unread = unreadByTeam?.get(t.id) ?? 0
         return (
           <HStack
             key={t.id}
@@ -129,9 +133,34 @@ export function RoomList({ teams, onSelect }: RoomListProps) {
                   {formatListTime(preview?.createdAt ?? null)}
                 </Text>
               </Flex>
-              <Text fontSize="sm" color="gray.500" noOfLines={1}>
-                {preview ? preview.body : 'まだメッセージがありません'}
-              </Text>
+              <Flex justify="space-between" align="center" gap={2}>
+                <Text
+                  fontSize="sm"
+                  color={unread > 0 ? 'gray.800' : 'gray.500'}
+                  fontWeight={unread > 0 ? 'semibold' : undefined}
+                  noOfLines={1}
+                >
+                  {preview ? preview.body : 'まだメッセージがありません'}
+                </Text>
+                {unread > 0 && (
+                  <Box
+                    as="span"
+                    flexShrink={0}
+                    minW="20px"
+                    px="6px"
+                    bg="danger.500"
+                    color="white"
+                    borderRadius="full"
+                    fontSize="xs"
+                    lineHeight="20px"
+                    fontWeight="bold"
+                    textAlign="center"
+                    aria-label={`未読 ${unread} 件`}
+                  >
+                    {formatBadgeCount(unread)}
+                  </Box>
+                )}
+              </Flex>
             </Box>
           </HStack>
         )

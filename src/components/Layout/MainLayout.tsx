@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useState } from 'react'
+import { lazy, Suspense, useCallback, useMemo, useState } from 'react'
 import {
   Box,
   Flex,
@@ -23,6 +23,8 @@ import {
 } from '@chakra-ui/react'
 import { avatarColor } from '../../lib/avatarColor'
 import { useAuth } from '../../hooks/useAuth'
+import { useUnreadMessages } from '../../hooks/useUnreadMessages'
+import { formatBadgeCount } from '../Chat/unreadUtils'
 import { useRedeemPendingInvite } from '../../hooks/usePendingInvite'
 import { Wordmark } from '../ui/Wordmark'
 import { AccountModal } from '../Account/AccountModal'
@@ -40,6 +42,15 @@ const TeamsTab = lazy(() => import('../Team/TeamsTab'))
 /** タブの並び順（カレンダー・地図・トーク・フレンド・チーム）における「トーク」。 */
 const TALK_TAB_INDEX = 2
 
+/** ヘッダーのタブ定義。badge を持つタブにだけ未読バッジを出す。 */
+const TABS: { icon: string; label: string; badge?: boolean }[] = [
+  { icon: '🗓', label: 'カレンダー' },
+  { icon: '🗺', label: 'マップ' },
+  { icon: '💬', label: 'チャット', badge: true },
+  { icon: '🤝', label: 'フレンド' },
+  { icon: '👥', label: 'チーム' },
+]
+
 function TabFallback() {
   return (
     <Center py={20}>
@@ -49,7 +60,11 @@ function TabFallback() {
 }
 
 export function MainLayout() {
-  const { user, profile, signOut, refreshProfile } = useAuth()
+  const { user, profile, teams, signOut, refreshProfile } = useAuth()
+  // 未読件数は MainLayout 側で数える。<Tabs isLazy> はタブを離れると
+  // ChatTab を unmount するため、ChatTab の中では数え続けられない。
+  const teamIds = useMemo(() => teams.map((t) => t.id), [teams])
+  const { unreadByTeam, unreadTotal, markTeamRead } = useUnreadMessages(user?.id, teamIds)
   const [tabIndex, setTabIndex] = useState(0)
   const name = profile?.displayName ?? 'ゲスト'
   const email = profile?.email ?? user?.email ?? ''
@@ -91,13 +106,7 @@ export function MainLayout() {
               <Wordmark size="sm" />
 
               <TabList gap={1} bg="gray.100" p={1} borderRadius="full">
-                {[
-                  { icon: '🗓', label: 'カレンダー' },
-                  { icon: '🗺', label: 'マップ' },
-                  { icon: '💬', label: 'チャット' },
-                  { icon: '🤝', label: 'フレンド' },
-                  { icon: '👥', label: 'チーム' },
-                ].map((t) => (
+                {TABS.map((t) => (
                   <Tab
                     key={t.label}
                     borderRadius="full"
@@ -111,7 +120,30 @@ export function MainLayout() {
                     _hover={{ color: 'gray.700' }}
                   >
                     <HStack spacing={1.5}>
-                      <Box as="span">{t.icon}</Box>
+                      {/* 未読バッジはアイコンの右肩に重ねるので relative が要る */}
+                      <Box as="span" position="relative">
+                        {t.icon}
+                        {t.badge && unreadTotal > 0 && (
+                          <Box
+                            as="span"
+                            position="absolute"
+                            top="-6px"
+                            right="-8px"
+                            minW="16px"
+                            px="4px"
+                            bg="danger.500"
+                            color="white"
+                            borderRadius="full"
+                            fontSize="10px"
+                            lineHeight="16px"
+                            fontWeight="bold"
+                            textAlign="center"
+                            aria-label={`未読 ${unreadTotal} 件`}
+                          >
+                            {formatBadgeCount(unreadTotal)}
+                          </Box>
+                        )}
+                      </Box>
                       <Box as="span" display={{ base: 'none', sm: 'block' }}>
                         {t.label}
                       </Box>
@@ -181,7 +213,7 @@ export function MainLayout() {
             </TabPanel>
             <TabPanel p={0}>
               <Suspense fallback={<TabFallback />}>
-                <ChatTab />
+                <ChatTab unreadByTeam={unreadByTeam} onOpenRoom={markTeamRead} />
               </Suspense>
             </TabPanel>
             <TabPanel p={0}>
