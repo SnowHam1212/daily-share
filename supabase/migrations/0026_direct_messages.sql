@@ -20,7 +20,7 @@
 --   専用テーブルなら RLS は他テーブルを参照せず自己完結する。
 --
 -- 仕様（2026-08-26 に決定）:
---   - 受信設定を users."dmPolicy" に持つ。既定は 'friends'
+--   - 受信設定を users."dmPolicy"（enum dm_policy）に持つ。既定は 'friends'
 --       'friends'  … フレンドからのみ受け取る（既定）
 --       'everyone' … 誰からでも受け取る
 --       'off'      … 誰からも受け取らない
@@ -32,21 +32,25 @@
 
 
 -- ---------- 受信設定 ----------
+--
+-- text + CHECK ではなく **enum** にする。sharing_state（0001）と同じ方針。
+-- `supabase gen types` は CHECK 制約の中身を読まないため、text 列だと
+-- 生成される TypeScript の型が `string` になり、'freinds' のような
+-- 打ち間違いをコンパイラが検出できなくなる。enum なら
+-- `'friends' | 'everyone' | 'off'` の union として生成される。
+--
+-- 値の追加は ALTER TYPE ... ADD VALUE で可能（ただしトランザクション内では
+-- 実行できない場合があるため、増やすときは単独のマイグレーションにする）。
 
-ALTER TABLE users
-  ADD COLUMN IF NOT EXISTS "dmPolicy" text NOT NULL DEFAULT 'friends';
-
--- 列レベルの CHECK なので、RLS の書き方に関係なく不正値は入らない。
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'users_dmPolicy_check'
-  ) THEN
-    ALTER TABLE users
-      ADD CONSTRAINT "users_dmPolicy_check"
-      CHECK ("dmPolicy" IN ('friends', 'everyone', 'off'));
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'dm_policy') THEN
+    CREATE TYPE dm_policy AS ENUM ('friends', 'everyone', 'off');
   END IF;
 END $$;
+
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS "dmPolicy" dm_policy NOT NULL DEFAULT 'friends';
 
 
 -- ---------- 送信可否の判定 ----------

@@ -400,6 +400,7 @@ export type Database = {
     }
     Enums: {
       sharing_state: 'private' | 'friends' | 'team'
+      dm_policy: 'friends' | 'everyone' | 'off'
     }
   }
 }
