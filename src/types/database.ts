@@ -16,6 +16,7 @@ export type Database = {
           phoneNumber: string | null
           birthday: string | null
           createdAt: string | null
+          dmPolicy: 'friends' | 'everyone' | 'off'
         }
         Insert: {
           id: string
@@ -26,6 +27,7 @@ export type Database = {
           phoneNumber?: string | null
           birthday?: string | null
           createdAt?: string | null
+          dmPolicy?: 'friends' | 'everyone' | 'off'
         }
         Update: {
           id?: string
@@ -36,6 +38,7 @@ export type Database = {
           phoneNumber?: string | null
           birthday?: string | null
           createdAt?: string | null
+          dmPolicy?: 'friends' | 'everyone' | 'off'
         }
         Relationships: []
       }
@@ -233,6 +236,30 @@ export type Database = {
           timezone?: string | null
           externalUid?: string | null
           externalSource?: string | null
+          createdAt?: string | null
+        }
+        Relationships: []
+      }
+      direct_messages: {
+        Row: {
+          id: string
+          senderId: string
+          recipientId: string
+          body: string
+          createdAt: string | null
+        }
+        Insert: {
+          id?: string
+          senderId: string
+          recipientId: string
+          body: string
+          createdAt?: string | null
+        }
+        Update: {
+          id?: string
+          senderId?: string
+          recipientId?: string
+          body?: string
           createdAt?: string | null
         }
         Relationships: []
