@@ -5,7 +5,14 @@ import { Card } from '../ui/Card'
 import { RoomList } from './RoomList'
 import { RoomView } from './RoomView'
 
-export default function ChatTab() {
+interface ChatTabProps {
+  /** teamId -> 未読件数。MainLayout 側で数えたものを受け取る（#110）。 */
+  unreadByTeam?: Map<string, number>
+  /** ルームを開いたときに既読位置を進める。 */
+  onOpenRoom?: (teamId: string) => void
+}
+
+export default function ChatTab({ unreadByTeam, onOpenRoom }: ChatTabProps = {}) {
   const { user, teams, refreshProfile } = useAuth()
   // 退出などで所属から外れた ID が残っても、描画時に teams.find で
   // フォールバックするため一覧へ自然に戻る（同期用の effect は不要）。
@@ -47,7 +54,15 @@ export default function ChatTab() {
           トークルームを選ぶと、チームのメンバーとリアルタイムにやり取りできます。
         </Text>
       </Box>
-      <RoomList teams={teams} onSelect={setSelectedTeamId} />
+      <RoomList
+        teams={teams}
+        unreadByTeam={unreadByTeam}
+        onSelect={(teamId) => {
+          // 開いた時点で既読にする。数える側は MainLayout なので通知する。
+          onOpenRoom?.(teamId)
+          setSelectedTeamId(teamId)
+        }}
+      />
     </VStack>
   )
 }

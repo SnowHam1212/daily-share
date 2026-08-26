@@ -237,6 +237,24 @@ export type Database = {
         }
         Relationships: []
       }
+      message_reads: {
+        Row: {
+          userId: string
+          teamId: string
+          lastReadAt: string
+        }
+        Insert: {
+          userId: string
+          teamId: string
+          lastReadAt?: string
+        }
+        Update: {
+          userId?: string
+          teamId?: string
+          lastReadAt?: string
+        }
+        Relationships: []
+      }
       locations: {
         Row: {
           userId: string
