@@ -1,0 +1,103 @@
+# 本番に適用されていないマイグレーションを検知する。
+#
+# なぜ要るか:
+#   マージしただけではマイグレーションは本番に反映されない。Vercel は
+#   main へのマージで自動デプロイされるが、`supabase db push` を実行する
+#   工程が誰の担当でもなかったため、「コードは新・DB は旧」の状態が
+#   繰り返し発生した。
+#
+#     0021-0023 … マージ後に未適用のまま放置（セキュリティ修正が効いていなかった）
+#     0024      … マージ後に未適用。本番の .ics 取り込みと個人予定が壊れていた
+#     0025      … マージ後に未適用。未読バッジが本番で機能していなかった
+#
+#   いずれも `supabase.from(...)` はエラーを throw しないため Sentry にも
+#   上がらず、気づく手段が無かった（CLAUDE.md「エラー監視」参照）。
+#
+# 何をするか:
+#   **適用はしない。** 未適用のマイグレーションがあれば CI を失敗させて
+#   知らせるだけ。適用は docs/migration-deploy-runbook.md のとおり、
+#   コードのデプロイを確認したうえで人が判断して行う。
+#
+# 必要な Secrets:
+#   SUPABASE_ACCESS_TOKEN … https://supabase.com/dashboard/account/tokens で発行
+#   SUPABASE_PROJECT_REF  … プロジェクト参照 ID（ダッシュボードの URL に含まれる）
+#   SUPABASE_DB_PASSWORD  … 任意。link / push が DB パスワードを要求する場合のみ
+name: Migration Check
+
+on:
+  # マージ直後。今まで取りこぼしていたのがまさにこの瞬間。
+  push:
+    branches: [main]
+  # push を伴わないズレ（ダッシュボードから直接触った等）も拾う。
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  unapplied-migrations:
+    name: 未適用のマイグレーションが無いか
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Secrets の有無を確認
+        id: guard
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          if [ -z "$TOKEN" ] || [ -z "$REF" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Migration Check は未設定です::SUPABASE_ACCESS_TOKEN と SUPABASE_PROJECT_REF を Secrets に登録するまで、このチェックは何も検査しません。"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: プロジェクトを link
+        if: steps.guard.outputs.configured == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: npx --yes supabase@latest link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
+
+      - name: 未適用のマイグレーションを検出
+        if: steps.guard.outputs.configured == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          set -o pipefail
+          # --dry-run なので本番は一切変更しない。
+          out="$(npx --yes supabase@latest db push --dry-run --yes 2>&1)" || true
+          echo "$out"
+
+          # CLI は実行環境によって JSON とテキストのどちらでも返しうるので両方見る。
+          if printf '%s' "$out" | grep -qE '"upToDate":[[:space:]]*true|Remote database is up to date'; then
+            echo "本番は最新です。"
+            exit 0
+          fi
+
+          if printf '%s' "$out" | grep -qE '"upToDate":[[:space:]]*false|Would push these migrations'; then
+            pending="$(printf '%s' "$out" | grep -oE '[0-9]{4}_[a-z0-9_]+\.sql' | sort -u | tr '\n' ' ')"
+            echo "::error title=未適用のマイグレーションがあります::${pending}"
+            {
+              echo "## 未適用のマイグレーションがあります"
+              echo ""
+              echo "本番 DB に反映されていないマイグレーション: \`${pending}\`"
+              echo ""
+              echo "コードは既にデプロイされている可能性が高く、**DB とコードが食い違っています。**"
+              echo ""
+              echo "1. [docs/migration-deploy-runbook.md](docs/migration-deploy-runbook.md) を読む"
+              echo "2. 対応するコードがデプロイ済みか確認する"
+              echo "3. \`npx supabase db push --dry-run\` で対象を確認してから \`npx supabase db push\`"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          echo "::error title=判定できませんでした::db push --dry-run の出力を解釈できませんでした。上のログを確認してください。"
+          exit 1
