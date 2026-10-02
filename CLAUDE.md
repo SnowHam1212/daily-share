@@ -113,6 +113,19 @@ Supabase は `ALTER DEFAULT PRIVILEGES ... GRANT ALL ON FUNCTIONS TO anon, authe
 
 バックエンド用ジョブは `ci.yml` にコメントアウトで雛形が残っている（バックエンド導入時に有効化）。
 
+### Deploy (`deploy.yml`)
+
+`main` への push でトリガー。**Actions 上でビルドし、成果物だけを Vercel へ送る**（Vercel の Git 連携は使わない）。
+
+2026-09-21 のリポジトリ Org 移管で Vercel の GitHub App 接続が切れ、**マージした 7 本が 10 日間本番に届かなかった**。接続の修復は Org owner の操作が要るため、GitHub App に依存しない経路へ切り替えた。
+
+- アプリの環境変数（`VITE_SUPABASE_*`）は **Vercel のプロジェクト設定**に置く。ワークフローが `vercel pull` で取ってくるので、GitHub の Secrets には入れない
+- GitHub の Secrets に入れるのは `VERCEL_TOKEN` / `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` の 3 つだけ
+- **PR ごとのプレビューは無い。** GitHub の Deployments タブにも出ない（実行記録は Actions タブに残る）
+- Sentry の `release` / `environment` は、ランナーに `VERCEL_*` が無いためワークフローが `VITE_SENTRY_RELEASE` / `VITE_SENTRY_ENVIRONMENT` で明示的に渡す
+
+初回セットアップとロールバック・プレビュー復活の手順は **[docs/vercel-deploy-setup.md](docs/vercel-deploy-setup.md)** に集約してある。
+
 ### Issue テンプレート
 
 - **バグ報告** (`bug.md`) — タイトルプレフィックス `fix:`, ラベル `bug`
