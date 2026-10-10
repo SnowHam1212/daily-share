@@ -1,0 +1,111 @@
+# main にマージされた変更を本番（Vercel）へデプロイする。
+#
+# なぜ Actions でやるのか:
+#   リポジトリを SnowHam1212 から thisIsCsDojo へ移管した際、Vercel の
+#   GitHub App 接続が切れた（App のインストールは移管先に引き継がれない）。
+#   その結果 2026-09-21 以降にマージした #129〜#135 が本番に届かず、
+#   10 日間気づかないまま古いビルドが配られていた。
+#
+#   接続を直すには Org への App インストールが要り、それは Org owner
+#   （SnowHam さん）の操作になる。申請は一度流れた。配布を人待ちで
+#   止めないため、GitHub App を使わない経路に切り替える。
+#
+# 何をするか:
+#   Actions のランナーでビルドし（CI と同じ Node 24）、成果物だけを
+#   Vercel へアップロードする。Vercel 側のビルドは使わない。
+#
+# 必要な Secrets（登録手順は docs/vercel-deploy-setup.md）:
+#   VERCEL_TOKEN      … https://vercel.com/account/tokens で発行。**秘密**
+#   VERCEL_ORG_ID     … `vercel link` 後の .vercel/project.json の orgId
+#   VERCEL_PROJECT_ID … 同 projectId
+#
+#   **未登録の場合このワークフローは失敗する。** デプロイできていない
+#   状態を緑で隠さないため（migration-check.yml と同じ方針）。
+#
+# アプリの環境変数（VITE_SUPABASE_URL など）はここには置かない。
+# Vercel のプロジェクト設定に置き、`vercel pull` が取ってくる。
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# 連続してマージされたとき、古いデプロイが新しいものを追い越さないようにする。
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  production:
+    name: 本番へデプロイ
+    runs-on: ubuntu-latest
+
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Secrets が登録されているか確認
+        env:
+          TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          missing=""
+          [ -z "$TOKEN" ]             && missing="$missing VERCEL_TOKEN"
+          [ -z "$VERCEL_ORG_ID" ]     && missing="$missing VERCEL_ORG_ID"
+          [ -z "$VERCEL_PROJECT_ID" ] && missing="$missing VERCEL_PROJECT_ID"
+          if [ -n "$missing" ]; then
+            echo "::error title=Deploy が設定されていません::未登録の Secrets:${missing}"
+            {
+              echo "## Deploy が設定されていません"
+              echo ""
+              echo "未登録の Secrets:${missing}"
+              echo ""
+              echo "**本番にデプロイできていません。** マージした変更は反映されません。"
+              echo ""
+              echo "登録手順は [docs/vercel-deploy-setup.md](docs/vercel-deploy-setup.md) を参照。"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "Secrets は登録されています。"
+
+      - name: Install
+        run: npm ci
+
+      - name: Vercel の環境変数を取得
+        # VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY などを
+        # .vercel/.env.production.local として取ってくる。次の build が読む。
+        run: npx --yes vercel@latest pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
+
+      - name: ビルド
+        env:
+          # vite.config.ts は VERCEL_GIT_COMMIT_SHA / VERCEL_ENV から
+          # Sentry の release / environment を決めるが、Actions のランナーには
+          # それらが無い。同じ用途の VITE_ 変数で明示的に渡す（vite.config.ts は
+          # VITE_ 側を優先する）。Sentry は DSN 未設定の間は no-op なので、
+          # 現時点ではイベントに付く値の準備という意味しかない。
+          VITE_SENTRY_RELEASE: ${{ github.sha }}
+          VITE_SENTRY_ENVIRONMENT: production
+        run: npx --yes vercel@latest build --prod --token="${{ secrets.VERCEL_TOKEN }}"
+
+      - name: デプロイ
+        run: |
+          set -o pipefail
+          url="$(npx --yes vercel@latest deploy --prebuilt --prod --token="${{ secrets.VERCEL_TOKEN }}")"
+          echo "$url"
+          {
+            echo "## 本番へデプロイしました"
+            echo ""
+            echo "- デプロイ URL: ${url}"
+            echo "- コミット: \`${GITHUB_SHA}\`"
+            echo ""
+            echo "固定の本番 URL（Vercel の Domains に設定したもの）でも同じ内容が見られます。"
+          } >> "$GITHUB_STEP_SUMMARY"
